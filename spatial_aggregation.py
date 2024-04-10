@@ -19,12 +19,13 @@ def disaggregate_polygon_to_raster(
     if resolution is not None:
         print("Disaggregating using resolution.")
         proxy = get_uniform_proxy(data.geometry, resolution)
-        pass
+
     elif proxy is not None:
         print("Disaggregating using proxy.")
         assert proxy.rio.crs == data.geometry.crs, f"Proxy and data should have the same CRS. But proxy has {proxy.rio.crs} and data has {data.geometry.crs}."
     
     print(proxy)
+    print(proxy.rio.crs)
 
     # TODO: Look at atlite's ExclusionContainer for inspiration on how to implement this.
     # probably implemented in shape_availability()
@@ -40,7 +41,7 @@ def disaggregate_polygon_to_raster(
     return raster_data
 
 
-def get_uniform_proxy(spatial_units: gpd.GeoSeries, raster_resolution) -> xr.Dataset:
+def get_uniform_proxy(spatial_units: gpd.GeoSeries, raster_resolution: tuple[int,int]) -> xr.Dataset:
     r"""
     Get a uniform proxy for each region.
     """
@@ -56,6 +57,8 @@ def get_uniform_proxy(spatial_units: gpd.GeoSeries, raster_resolution) -> xr.Dat
         data_vars={},
         coords={'x': ('x', x_coords), 'y': ('y', y_coords)}
     )
+
+    uniform_proxy.rio.set_crs(spatial_units.crs)
 
     return uniform_proxy
 
