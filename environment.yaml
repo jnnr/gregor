@@ -1,0 +1,11 @@
+name: spatial-disaggregation
+channels:
+    - conda-forge
+    - bioconda
+dependencies:
+    - python=3.11
+    - xarray
+    - geopandas
+    - rioxarray
+    - dask   
+    - snakemake-minimal=7.26.0

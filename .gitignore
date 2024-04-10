@@ -1,0 +1,6 @@
+.idea/
+.vscode/
+.snakemake/
+__pycache__/
+build/
+data/
