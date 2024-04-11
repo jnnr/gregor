@@ -1,6 +1,8 @@
 import geopandas as gpd
 import xarray as xr
 import numpy as np
+from rasterio.features import geometry_mask
+
 
 def disaggregate_polygon_to_raster(
         data: gpd.GeoDataFrame,
@@ -23,21 +25,21 @@ def disaggregate_polygon_to_raster(
     elif proxy is not None:
         print("Disaggregating using proxy.")
         assert proxy.rio.crs == data.geometry.crs, f"Proxy and data should have the same CRS. But proxy has {proxy.rio.crs} and data has {data.geometry.crs}."
-    
-    print(proxy)
-    print(proxy.rio.crs)
 
     # TODO: Look at atlite's ExclusionContainer for inspiration on how to implement this.
     # probably implemented in shape_availability()
     # Each raster point belongs to one spatial_unit
-    indicatormatrix = None
+    belongs_to = get_belongs_to_matrix(proxy, data.geometry)
     _data = data.to_xarray()
+    normalization = belongs_to.sum(axis=(0, 1))
+    print("belongs_to", belongs_to)
+    print("_data", _data)
+    print("normalization", normalization)
 
-    # raster_data = proxy * matrix_of_belongs_to(pixel, id_of_unit) * data
-    raster_data = proxy * indicatormatrix * _data
-    # Disaggregate data to raster using proxy
-
+    # TODO Disaggregate data to raster using proxy
+    # raster_data_{x,y} = _data_{id} * belongs_to_{id,x,y} * normalization_id
     raster_data = xr.Dataset()
+
     return raster_data
 
 
@@ -58,9 +60,21 @@ def get_uniform_proxy(spatial_units: gpd.GeoSeries, raster_resolution: tuple[int
         coords={'x': ('x', x_coords), 'y': ('y', y_coords)}
     )
 
-    uniform_proxy.rio.set_crs(spatial_units.crs)
+    # TODO Set transform and crs
+    # uniform_proxy = uniform_proxy.rio.set_spatial_dims('x', 'y')
+    # uniform_proxy = uniform_proxy.rio.write_transform()
+    uniform_proxy = uniform_proxy.rio.set_crs(spatial_units.crs)
 
     return uniform_proxy
+
+
+def get_belongs_to_matrix(raster_data: xr.Dataset, spatial_units: gpd.GeoSeries) -> xr.Dataset:
+    for geometry in spatial_units:
+        geometry_mask([geometry], out_shape=raster_data.shape, transform=raster_data.rio.transform(), invert=True)
+        print(np.where(mask))
+    belongs_to_matrix = np.zeros((raster_data.x.size, raster_data.y.size, spatial_units.shape[0]))
+
+    return belongs_to_matrix
 
 
 def aggregate_raster_to_polygon(

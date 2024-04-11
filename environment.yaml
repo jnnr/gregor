@@ -7,5 +7,6 @@ dependencies:
     - xarray
     - geopandas
     - rioxarray
-    - dask   
+    - dask
+    - cartopy
     - snakemake-minimal=7.26.0
