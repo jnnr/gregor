@@ -69,10 +69,15 @@ def get_uniform_proxy(spatial_units: gpd.GeoSeries, raster_resolution: tuple[int
 
 
 def get_belongs_to_matrix(raster_data: xr.Dataset, spatial_units: gpd.GeoSeries) -> xr.Dataset:
-    for geometry in spatial_units:
-        geometry_mask([geometry], out_shape=raster_data.shape, transform=raster_data.rio.transform(), invert=True)
-        print(np.where(mask))
-    belongs_to_matrix = np.zeros((raster_data.x.size, raster_data.y.size, spatial_units.shape[0]))
+    # create an empty dataarray with the coords matching raster_data and spatial_units
+    belongs_to_matrix = xr.DataArray(data=None, dims=["y", "x", "id"], coords={"y": raster_data.y, "x": raster_data.x, "id": spatial_units.index})
+    belongs_to_matrix.attrs['transform'] = raster_data.rio.transform
+    belongs_to_matrix.attrs['crs'] = raster_data.rio.crs
+
+    for id, geometry in spatial_units.items():
+        mask = geometry_mask([geometry], out_shape=raster_data.shape, transform=raster_data.rio.transform(), invert=True)
+        mask = xr.DataArray(mask, coords=raster_data.coords, dims=raster_data.dims)
+        belongs_to_matrix.loc[:,:,id] = mask
 
     return belongs_to_matrix
 
