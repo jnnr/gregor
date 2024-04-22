@@ -10,3 +10,4 @@ dependencies:
     - dask
     - cartopy
     - snakemake-minimal=7.26.0
+    - rasterstats
