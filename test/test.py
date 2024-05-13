@@ -1,4 +1,4 @@
-import spatial_aggregation
+import src.spatial_aggregation as spatial_aggregation
 
 
 def test_get_uniform_proxy():

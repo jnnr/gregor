@@ -2,8 +2,8 @@
 This example takes statistical data that is based on spatial units and
 disaggregates it to raster data using a raster proxy.
 """
-from spatial_aggregation import disaggregate_polygon_to_raster, aggregate_raster_to_polygon
-from plot import plot_raster, plot_vector
+from src.spatial_aggregation import disaggregate_polygon_to_raster, aggregate_raster_to_polygon
+from src.plot import plot_raster, plot_vector
 
 import pandas as pd
 import geopandas as gpd
