@@ -1,2 +1,4 @@
+from . import aggregate
+from . import disaggregate
 from . import plot
-from . import spatial_aggregation
+from . import raster

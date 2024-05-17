@@ -2,6 +2,7 @@ import geopandas as gpd
 import xarray as xr
 import numpy as np
 from rasterio.features import geometry_mask
+from pathlib import Path
 
 
 def disaggregate_polygon_to_raster(
@@ -82,16 +83,4 @@ def get_belongs_to_matrix(raster_data: xr.Dataset, spatial_units: gpd.GeoSeries)
     return belongs_to_matrix
 
 
-def aggregate_raster_to_polygon(
-        raster_data: xr.Dataset,
-        crs: str,
-        spatial_units: gpd.GeoSeries,
-) -> gpd.GeoDataFrame:
-    r"""
-    Aggregate raster data with spatial units and aggregate the data.
-    """
-    # Aggregate raster data to spatial units
-    
 
-    return 
-    
