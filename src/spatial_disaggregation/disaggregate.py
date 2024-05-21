@@ -32,16 +32,17 @@ def disaggregate_polygon_to_raster(
     belongs_to = get_belongs_to_matrix(proxy, data.geometry)
     _data = data.to_xarray()
     _data = _data.drop_vars(["geometry"])
-    normalization = belongs_to.sum(axis=(0, 1))
+    normalization = belongs_to.drop("spatial_ref").groupby(belongs_to).count().rename(group="id")
 
-    # Remove regions that do not belong to any geometry
-    normalization = normalization.drop_sel(id=normalization.id[normalization==0])
-    belongs_to = belongs_to.sel(id=normalization.id)
-    _data = _data.sel(id=normalization.id)
+    # # Remove regions that do not belong to any geometry
+    _data = _data.sel(id=normalization.coords["id"])
 
     # Disaggregate data to raster using proxy
     # raster_data_{x,y} = 1/normalization_{id} * _data_{id} * belongs_to_{id,x,y} * proxy_{x,y}
-    raster_data = 1 / normalization * _data * belongs_to * proxy
+    raster_data = xr.DataArray(data=None, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x})
+    for id in normalization.coords["id"]:
+        raster_data_id = 1 / normalization.sel(id=id) * _data.sel(id=id) * belongs_to.where(belongs_to == id) * proxy
+        raster_data = raster_data + raster_data_id
 
     return raster_data
 
@@ -73,16 +74,15 @@ def get_uniform_proxy(spatial_units: gpd.GeoSeries, raster_resolution: tuple[int
 
 def get_belongs_to_matrix(raster_data: xr.Dataset, spatial_units: gpd.GeoSeries) -> xr.Dataset:
     # create an empty dataarray with the coords matching raster_data and spatial_units
-    belongs_to_matrix = xr.DataArray(data=None, dims=["y", "x", "id"], coords={"y": raster_data.y, "x": raster_data.x, "id": spatial_units.index})
+    belongs_to_matrix = xr.DataArray(data=None, dims=["y", "x"], coords={"y": raster_data.y, "x": raster_data.x})
     belongs_to_matrix.attrs['transform'] = raster_data.rio.transform
     belongs_to_matrix.attrs['crs'] = raster_data.rio.crs
 
     for id, geometry in spatial_units.items():
         mask = geometry_mask([geometry], out_shape=raster_data.shape, transform=raster_data.rio.transform(), invert=True)
         mask = xr.DataArray(mask, coords=raster_data.coords, dims=raster_data.dims)
-        belongs_to_matrix.loc[:,:,id] = mask
-
-    belongs_to_matrix = belongs_to_matrix.astype("bool")
+        # assert belongs_to_matrix.where(mask).isnull().all(), "Trying to assign to value which is not None. Maybe cause of overlapping geometries."
+        belongs_to_matrix = belongs_to_matrix.where(~mask, id)
 
     return belongs_to_matrix
 
