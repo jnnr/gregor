@@ -23,8 +23,11 @@ keywords = [
 dependencies = [
   # https://stackoverflow.com/questions/14399534
   'pandas>=1.2',
-  'deprecated',
-  "attrs",
+  'numpy',
+  'geopandas',
+  'xarray',
+  'rasterio',
+  'rasterstats',
 ]
 requires-python = ">=3.8, <4"
 
