@@ -6,13 +6,22 @@ from pathlib import Path
 
 
 def aggregate_raster_to_polygon(
-        raster: str|Path,
+        raster: str|Path|xr.DataArray,
         polygons: gpd.GeoSeries|gpd.GeoDataFrame,
         stats: str="sum"
     ) -> gpd.GeoDataFrame:
     r"""
     Aggregate raster data with spatial units.
     """
+    if isinstance(raster, (str, Path)):
+        results_gdf = _aggregate_file_to_polygon(raster, polygons, stats)
+    elif isinstance(raster, xr.DataArray):
+        results_gdf = _aggregate_xarray_to_polygon(raster, polygons, stats)
+
+    return results_gdf
+
+
+def _aggregate_file_to_polygon(raster, polygons, stats):
     with rio.open(raster) as src:
         affine = src.transform
         array = src.read(1)
@@ -31,6 +40,16 @@ def aggregate_raster_to_polygon(
     results_gdf = result_gdf.rename(columns={stats: f"{name_variable}_{stats}"})
 
     return results_gdf
+
+
+def _aggregate_xarray_to_polygon(raster, polygons, stats):
+    agg_raster_poly = zonal_stats(
+        polygons, raster.values, affine=raster.rio.transform(), stats=stats, nodata=-999
+    )
+    results_gdf = gpd.GeoDataFrame(agg_raster_poly, index=polygons.index, crs=polygons.crs, geometry=polygons.geometry)
+    results_gdf.index.name = polygons().index.name
+    return results_gdf
+
 
 
 def aggregate_point_to_polygon(points: gpd.GeoDataFrame, polygons: gpd.GeoSeries|gpd.GeoDataFrame, aggfunc='sum'):
