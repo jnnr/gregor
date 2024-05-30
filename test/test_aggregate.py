@@ -6,26 +6,28 @@ import pandas as pd
 from spatial_disaggregation.aggregate import aggregate_raster_to_polygon
 
 
-# @pytest.fixture
+@pytest.fixture
 def dummy_raster():
     return rxr.open_rasterio("test/_files/raster.tif").squeeze(drop=True)
 
 
-# @pytest.fixture
+@pytest.fixture
 def square_segmentation_2x2():
     return gpd.read_file("test/_files/segmentation_2x2.geojson").set_index("id")
 
-# @pytest.fixture
+
+@pytest.fixture
 def square_segmentation_3x3():
     return gpd.read_file("test/_files/segmentation_3x3.geojson").set_index("id")
 
-# @pytest.fixture
+
+@pytest.fixture
 def points():
     return gpd.read_file("test/_files/points.geojson")
 
 
 def test_agg_tif_2x2(square_segmentation_2x2):
-    agg_raster_poly = aggregate_raster_to_polygon("test/_files/raster.tif", square_segmentation_2x2())
+    agg_raster_poly = aggregate_raster_to_polygon("test/_files/raster.tif", square_segmentation_2x2)
 
     expected = [
         [2.75, 1.],
@@ -36,7 +38,7 @@ def test_agg_tif_2x2(square_segmentation_2x2):
 
 
 def test_agg_array_2x2(square_segmentation_2x2, dummy_raster):
-    agg_raster_poly = aggregate_raster_to_polygon(dummy_raster(), square_segmentation_2x2())
+    agg_raster_poly = aggregate_raster_to_polygon(dummy_raster, square_segmentation_2x2)
 
     expected = [
         [2.75, 1.],
@@ -46,45 +48,33 @@ def test_agg_array_2x2(square_segmentation_2x2, dummy_raster):
     assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(2, 2), k=1) == expected).all()
 
 
-def test_agg_tif_3x3(dummy_raster):
-    agg_raster_poly = aggregate_raster_to_polygon("test/_files/raster.tif", square_segmentation_3x3())
-    agg_raster_poly = pd.DataFrame(agg_raster_poly, index=square_segmentation_3x3().index)
-    agg_raster_poly.index.name = square_segmentation_3x3().index.name
-    print(np.rot90(agg_raster_poly["value_sum"].to_numpy().reshape(3, 3), k=1))
-
-
-def test_agg_array_3x3(square_segmentation_3x3, dummy_raster):
-    from rasterstats import zonal_stats
-    import pandas as pd
-    import numpy as np
-    array = np.array(
-        [   
-            [7, 5, 1, 0.25, 0.25],
-            [0, 5, 0.25, 0.25, 0.25],
-            [1, 0.25, 0.25, 0.25, 0.25],
-            [0.5, 0.25, 0.25, 0.25, 0.25],
-            [0.25, 0.25, 0.25, 0.25, 0.25],
-        ]
-    )
-    agg_raster_poly = zonal_stats(
-        square_segmentation_4x4(),
-        array,
-        affine=dummy_raster().rio.transform(),
-        stats='sum',
-        nodata=-999
-    )
-    agg_raster_poly = pd.DataFrame(agg_raster_poly, index=square_segmentation_3x3().index)
-    agg_raster_poly.index.name = square_segmentation_3x3().index.name
+@pytest.mark.skip(
+        "rasterstats.zonal_stats does provide exact aggregation when pixels are not aligned with polygons. "
+        "This is because a pixel can only belong or not belong to a polygon and not be split."
+)
+def test_agg_tif_3x3(square_segmentation_3x3):
+    agg_raster_poly = aggregate_raster_to_polygon("test/_files/raster.tif", square_segmentation_3x3)
 
     expected = [
-        [0.25, 0.50, 0.50, 0.75],
-        [0.50, 0.75, 1.25, 0.75],
-        [0.50, 0.75, 0.75, 1.25],
-        [0.75, 1.00, 1.00, 0.25],
+        [2.50, 1.50, 1.00],
+        [2.50, 1.75, 1.75],
+        [0.75, 0.50, 2.00],
     ]
-    print(np.rot90(agg_raster_poly["sum"].to_numpy().reshape(4, 4), k=1))
-    # assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(4, 4), k=1) == np.array(expected)).all()
 
-if __name__ == "__main__":
-    test_agg_tif_3x3(dummy_raster)
-    test_agg_array_3x3(square_segmentation_3x3, dummy_raster)
+    assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(3, 3), k=1) == np.array(expected)).all()
+
+
+@pytest.mark.skip(
+        "rasterstats.zonal_stats does provide exact aggregation when pixels are not aligned with polygons. "
+        "This is because a pixel can only belong or not belong to a polygon and not be split."
+)
+def test_agg_array_3x3(square_segmentation_3x3, dummy_raster):
+    agg_raster_poly = aggregate_raster_to_polygon(dummy_raster(), square_segmentation_3x3())
+
+    expected = [
+        [2.50, 1.50, 1.00],
+        [2.50, 1.75, 1.75],
+        [0.75, 0.50, 2.00],
+    ]
+
+    assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(3, 3), k=1) == np.array(expected)).all()
