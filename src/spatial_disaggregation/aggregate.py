@@ -21,33 +21,26 @@ def aggregate_raster_to_polygon(
     return results_gdf
 
 
-def _aggregate_file_to_polygon(raster, polygons, stats):
+def _aggregate_file_to_polygon(raster, polygons, stats, nodata=0):
     with rio.open(raster) as src:
         affine = src.transform
         array = src.read(1)
         
         polygons_projected = polygons.to_crs(src.crs)
 
-        zs = zonal_stats(polygons_projected, array, affine=affine, stats=stats, geojson_out=True)
+        zs = zonal_stats(polygons_projected, array, affine=affine, stats=stats, nododata=nodata, geojson_out=True)
         
-        result_gdf = gpd.GeoDataFrame.from_features(zs)
-
-        if hasattr(raster, "name"):
-            name_variable = raster.name
-        else:
-            name_variable = "value"
-
-    results_gdf = result_gdf.rename(columns={stats: f"{name_variable}_{stats}"})
+        results_gdf = gpd.GeoDataFrame.from_features(zs)
 
     return results_gdf
 
 
-def _aggregate_xarray_to_polygon(raster, polygons, stats):
+def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
     agg_raster_poly = zonal_stats(
-        polygons, raster.values, affine=raster.rio.transform(), stats=stats, nodata=-999
+        polygons, raster.values, affine=raster.rio.transform(), stats=stats, nodata=nodata
     )
     results_gdf = gpd.GeoDataFrame(agg_raster_poly, index=polygons.index, crs=polygons.crs, geometry=polygons.geometry)
-    results_gdf.index.name = polygons().index.name
+    results_gdf.index.name = polygons.index.name
     return results_gdf
 
 
