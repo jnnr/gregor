@@ -45,7 +45,7 @@ def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
     results_gdf = gpd.GeoDataFrame(agg_raster_poly, index=polygons.index, crs=polygons.crs, geometry=polygons.geometry)
     results_gdf.index.name = polygons.index.name
 
-    results_gdf = results_gdf.set_crs(src.crs)
+    results_gdf = results_gdf.set_crs(raster.rio.crs)
     results_gdf = results_gdf.to_crs(crs=polygons.crs)
 
     return results_gdf
