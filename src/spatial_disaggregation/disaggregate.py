@@ -32,16 +32,16 @@ def disaggregate_polygon_to_raster(
     belongs_to = get_belongs_to_matrix(proxy, data.geometry)
     _data = data.to_xarray()
     _data = _data.drop_vars(["geometry"])
-    normalization = belongs_to.drop("spatial_ref").groupby(belongs_to).count().rename(group="id")
+    normalization = proxy.groupby(belongs_to).sum().rename(group="id")
 
     # # Remove regions that do not belong to any geometry
     _data = _data.sel(id=normalization.coords["id"])
 
     # Disaggregate data to raster using proxy
     # raster_data_{x,y} = 1/normalization_{id} * _data_{id} * belongs_to_{id,x,y} * proxy_{x,y}
-    raster_data = xr.DataArray(data=None, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x})
+    raster_data = xr.DataArray(data=0, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x})
     for id in normalization.coords["id"]:
-        raster_data_id = 1 / normalization.sel(id=id) * _data.sel(id=id) * belongs_to.where(belongs_to == id) * proxy
+        raster_data_id = 1 / normalization.sel(id=id) * _data.sel(id=id) * (belongs_to == id) * proxy
         raster_data = raster_data + raster_data_id
 
     return raster_data
