@@ -4,11 +4,11 @@ authors:
   - family-names: "Launer"
     given-names: "Jann"
     alias: "@jnnr"
-    affiliation: ""
+    affiliation: "TU Delft"
     orcid: "https://orcid.org/0009-0007-2187-1488"
 title: "Gregor"
 type: software
-license: 
+license: MIT
 version: 0.0.1
 doi:
 date-released: 
