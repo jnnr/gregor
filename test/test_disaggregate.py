@@ -1,9 +1,7 @@
 import geopandas as gpd
 import numpy as np
-import pandas as pd
 import pytest
 import rioxarray as rxr
-
 from gregor.disaggregate import disaggregate_polygon_to_raster
 
 
@@ -28,17 +26,21 @@ def test_disaggregate_using_proxy_2x2(dummy_raster, square_segmentation_2x2):
     data["value"] = [2, 2, 2, 2]
 
     expected = [
-        [0.72727273, 0., 0., 0.],
-        [0.54545455, 0.72727273, 1., 1.],
-        [2., 0., 0.25, 0.75],
-        [0., 0., 0.25, 0.75],
+        [0.72727273, 0.0, 0.0, 0.0],
+        [0.54545455, 0.72727273, 1.0, 1.0],
+        [2.0, 0.0, 0.25, 0.75],
+        [0.0, 0.0, 0.25, 0.75],
     ]
 
-    disaggregated = disaggregate_polygon_to_raster(data=data, crs=dummy_raster.rio.crs, proxy=dummy_raster)
+    disaggregated = disaggregate_polygon_to_raster(
+        data=data, crs=dummy_raster.rio.crs, proxy=dummy_raster
+    )
 
-    assert (disaggregated.coarsen(x=2, y=2).sum()["value"].values == [[2, 2], [2, 2]]).all()
+    assert (
+        disaggregated.coarsen(x=2, y=2).sum()["value"].values == [[2, 2], [2, 2]]
+    ).all()
 
-    assert np.allclose(disaggregated['value'].values, expected)
+    assert np.allclose(disaggregated["value"].values, expected)
 
 
 def test_disaggregate_using_resolution_2x2():

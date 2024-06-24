@@ -1,15 +1,16 @@
-import xarray as xr
+from pathlib import Path
+
 import geopandas as gpd
 import rasterio as rio
+import xarray as xr
 from rasterstats import zonal_stats
-from pathlib import Path
 
 
 def aggregate_raster_to_polygon(
-        raster: str|Path|xr.DataArray,
-        polygons: gpd.GeoSeries|gpd.GeoDataFrame,
-        stats: str="sum"
-    ) -> gpd.GeoDataFrame:
+    raster: str | Path | xr.DataArray,
+    polygons: gpd.GeoSeries | gpd.GeoDataFrame,
+    stats: str = "sum",
+) -> gpd.GeoDataFrame:
     r"""
     Aggregate raster data with spatial units.
     """
@@ -25,11 +26,18 @@ def _aggregate_file_to_polygon(raster, polygons, stats, nodata=0):
     with rio.open(raster) as src:
         affine = src.transform
         array = src.read(1)
-        
+
         polygons_projected = polygons.to_crs(src.crs)
 
-        zs = zonal_stats(polygons_projected, array, affine=affine, stats=stats, nodata=nodata, geojson_out=True)
-        
+        zs = zonal_stats(
+            polygons_projected,
+            array,
+            affine=affine,
+            stats=stats,
+            nodata=nodata,
+            geojson_out=True,
+        )
+
         results_gdf = gpd.GeoDataFrame.from_features(zs)
 
         results_gdf = results_gdf.set_crs(src.crs)
@@ -40,9 +48,18 @@ def _aggregate_file_to_polygon(raster, polygons, stats, nodata=0):
 
 def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
     agg_raster_poly = zonal_stats(
-        polygons, raster.values, affine=raster.rio.transform(), stats=stats, nodata=nodata
+        polygons,
+        raster.values,
+        affine=raster.rio.transform(),
+        stats=stats,
+        nodata=nodata,
     )
-    results_gdf = gpd.GeoDataFrame(agg_raster_poly, index=polygons.index, crs=polygons.crs, geometry=polygons.geometry)
+    results_gdf = gpd.GeoDataFrame(
+        agg_raster_poly,
+        index=polygons.index,
+        crs=polygons.crs,
+        geometry=polygons.geometry,
+    )
     results_gdf.index.name = polygons.index.name
 
     results_gdf = results_gdf.set_crs(raster.rio.crs)
@@ -51,8 +68,9 @@ def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
     return results_gdf
 
 
-
-def aggregate_point_to_polygon(points: gpd.GeoDataFrame, polygons: gpd.GeoSeries|gpd.GeoDataFrame, aggfunc='sum'):
+def aggregate_point_to_polygon(
+    points: gpd.GeoDataFrame, polygons: gpd.GeoSeries | gpd.GeoDataFrame, aggfunc="sum"
+):
     if isinstance(polygons, gpd.GeoSeries):
         _polygons = polygons.to_frame()
     elif isinstance(polygons, gpd.GeoDataFrame):
@@ -60,7 +78,9 @@ def aggregate_point_to_polygon(points: gpd.GeoDataFrame, polygons: gpd.GeoSeries
     else:
         raise ValueError("`polygons` should be either a GeoSeries or a GeoDataFrame.")
 
-    joined_data = gpd.sjoin(points, _polygons, how="inner", op="within").drop(columns="geometry")
+    joined_data = gpd.sjoin(points, _polygons, how="inner", op="within").drop(
+        columns="geometry"
+    )
 
     aggregated_data = joined_data.groupby("index_right").agg(aggfunc)
 
