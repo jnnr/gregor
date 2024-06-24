@@ -6,10 +6,10 @@ authors:
     alias: "@jnnr"
     affiliation: ""
     orcid: "https://orcid.org/0009-0007-2187-1488"
-title: "spatial-disaggregation"
+title: "Gregor"
 type: software
 license: 
 version: 0.0.1
 doi:
 date-released: 
-url: "https://github.com/jnnr/spatial-disaggregation"
+url: "https://github.com/jnnr/gregor"

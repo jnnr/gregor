@@ -3,7 +3,7 @@ import rioxarray as rxr
 import pytest
 import numpy as np
 import pandas as pd
-from spatial_disaggregation.aggregate import aggregate_raster_to_polygon
+from gregor.aggregate import aggregate_raster_to_polygon
 
 
 @pytest.fixture

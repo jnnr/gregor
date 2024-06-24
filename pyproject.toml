@@ -1,5 +1,5 @@
 [project]
-name = "spatial-disaggregation"
+name = "gregor"
 authors = [
   {name = "Jann Launer", email = "j.a.c.launer@tudelft.nl"},
 ]
@@ -24,17 +24,19 @@ dependencies = [
   # https://stackoverflow.com/questions/14399534
   'pandas>=1.2',
   'numpy',
+  'matplotlib',
   'geopandas',
   'xarray',
   'rasterio',
+  'rioxarray',
   'rasterstats',
 ]
 requires-python = ">=3.8, <4"
 
 [project.urls]
-changelog = "https://github.com/jnnr/spatial-disaggregation/blob/main/CHANGELOG.rst"
-homepage = "https://github.com/jnnr/spatial-disaggregation"
-repository = "https://github.com/jnnr/spatial-disaggregation.git"
+changelog = "https://github.com/jnnr/gregor/blob/main/CHANGELOG.rst"
+homepage = "https://github.com/jnnr/gregor"
+repository = "https://github.com/jnnr/gregor.git"
 
 [build-system]
 build-backend = "setuptools.build_meta"
