@@ -1,0 +1,94 @@
+site_name: Gregor
+nav:
+  - Getting started: index.md
+  - Examples: 
+    - examples/aggregate.py
+    - examples/disaggregate.py
+  - API documentation: 
+    - API/aggregate.md
+    - API/disaggregate.md
+    - API/plot.md
+    - API/raster.md
+  - Changelog: Changelog.md
+theme:
+  name: material
+  logo: img/gregor.svg
+  favicon: img/gregor.svg
+  palette:
+    primary: 'black'
+    accent: 'black'
+  font:
+    text: 'Roboto'
+    code: Source Code Pro
+  features:
+    - navigation.indexes
+    - navigation.top
+  navigation:
+    tabs: false
+    sections: false
+plugins:
+  - search
+  - autorefs
+  - mkdocs-jupyter:
+      include: ["examples/*.py"]
+      ignore: []
+      allow_errors: false
+      # kernel_name: calliope_docs_build
+      include_source: True
+      execute: true
+      include_requirejs: true
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_bases: true
+            filters:
+              - "!^_"
+            heading_level: 1
+            show_root_heading: true
+            merge_init_into_class: true
+            show_if_no_docstring: true
+            signature_crossrefs: true
+            show_root_toc_entry: false
+            show_signature_annotations: false
+            inherited_members: true
+          paths: [src]
+          import:
+            - https://docs.python.org/3/objects.inv
+            - https://pandas.pydata.org/docs/objects.inv
+            - https://docs.xarray.dev/en/stable/objects.inv
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: "¶"
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      preserve_tabs: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
