@@ -11,13 +11,15 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import geopandas as gpd
 import rioxarray as rxr
+from pathlib import Path
 
 # %%
 # Load all the input data
-final_energy_hh = pd.read_csv("data/demand.csv", index_col=0)
-boundaries_country = gpd.read_file("data/boundaries_NUTS0.geojson")
-boundaries_NUTS3 = gpd.read_file("data/boundaries_NUTS3.geojson")
-population = rxr.open_rasterio("data/population_clipped.tif").squeeze()
+PATH_DATA = Path(".") / "docs" / "examples"
+final_energy_hh = pd.read_csv(PATH_DATA / "data/demand.csv", index_col=0)
+boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson")
+boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson")
+population = rxr.open_rasterio(PATH_DATA / "data/population_clipped.tif").squeeze()
 
 
 # %%
@@ -57,4 +59,4 @@ for ax in (ax1, ax2, ax3):
 
 # %%
 # Compare
-gregor.aggregate.aggregate_raster_to_polygon(final_energy_hh_raster.FC_OTH_HH_E, boundaries_country)
+# gregor.aggregate.aggregate_raster_to_polygon(final_energy_hh_raster.FC_OTH_HH_E, boundaries_country)
