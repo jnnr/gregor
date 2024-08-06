@@ -1,4 +1,4 @@
-# Gregor
+# Gregor: Aggregation and disaggregation of spatial data
 
 Gregor is a tool that makes your life easier when aggregating and dis-aggregating spatial data. It has been developed in the context of preparing data for energy system modeling, but can be applied in any situation involving spatial data.
 
