@@ -37,8 +37,7 @@ for ax in (ax1, ax2):
     ax.set_ylim(*ylim)
 
 # %%
-final_energy_hh = final_energy_hh.to_crs(population.rio.crs)[["FC_OTH_HH_E", "geometry"]]
-final_energy_hh_raster = gregor.disaggregate.disaggregate_polygon_to_raster(final_energy_hh, crs=None, proxy=population)
+final_energy_hh_raster = gregor.disaggregate.disaggregate_polygon_to_raster(final_energy_hh, column="FC_OTH_HH_E", proxy=population)
 
 # %%
 xlim, ylim = ((2.5, 7.5), (49, 54))
@@ -58,5 +57,4 @@ for ax in (ax1, ax2, ax3):
 
 # %%
 # Compare
-final_energy_hh_raster.FC_OTH_HH_E.sum()
 gregor.aggregate.aggregate_raster_to_polygon(final_energy_hh_raster.FC_OTH_HH_E, boundaries_country)

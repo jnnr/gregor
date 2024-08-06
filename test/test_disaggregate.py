@@ -33,7 +33,7 @@ def test_disaggregate_using_proxy_2x2(dummy_raster, square_segmentation_2x2):
     ]
 
     disaggregated = disaggregate_polygon_to_raster(
-        data=data, crs=dummy_raster.rio.crs, proxy=dummy_raster
+        data=data, column="value", proxy=dummy_raster
     )
 
     assert (

@@ -6,12 +6,31 @@ from rasterio.features import geometry_mask
 
 def disaggregate_polygon_to_raster(
     data: gpd.GeoDataFrame,
-    crs: str,
+    column: str,
     resolution: int = None,
     proxy: xr.Dataset = None,
+    to_data_crs: bool = False,
 ) -> xr.Dataset:
     r"""
     Disaggregate polygon data to raster data using proxy or uniform density.
+
+    Parameters
+    ----------
+    data : gpd.GeoDataFrame
+        Data to be disaggregated.
+    column : str
+        Column name of the data to be disaggregated.
+    resolution : int, optional
+        Target resolution for uniform proxy. Either resolution or proxy should be provided.
+    proxy : xr.Dataset, optional
+        Proxy data for disaggregation. Either resolution or proxy should be provided.
+    to_data_crs : bool, optional
+        Whether to reproject proxy to `data`'s CRS or keep it in `raster`'s CRS. Default is False.
+
+    Returns
+    -------
+    xr.Dataset
+        Disaggregated raster data.
     """
     # Proxy for each region should add to one
     if resolution is None and proxy is None:
@@ -23,16 +42,17 @@ def disaggregate_polygon_to_raster(
         proxy = get_uniform_proxy(data.geometry, resolution)
     elif resolution is None and proxy is not None:
         print("Disaggregating using proxy.")
-        assert (
-            proxy.rio.crs == data.geometry.crs
-        ), f"Proxy and data should have the same CRS. But proxy has {proxy.rio.crs} and data has {data.geometry.crs}."
 
-    # TODO: Look at atlite's ExclusionContainer for inspiration on how to implement this.
-    # probably implemented in shape_availability()
+    _data = data.copy()
+    if not proxy.rio.crs == data.crs:
+        print(
+            f"CRS of `proxy` ({proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
+        )
+        _data = _data.to_crs(proxy.rio.crs)
+
     # Each raster point belongs to one spatial_unit
-    belongs_to = get_belongs_to_matrix(proxy, data.geometry)
-    _data = data.to_xarray()
-    _data = _data.drop_vars(["geometry"])
+    belongs_to = get_belongs_to_matrix(proxy, _data.geometry)
+    _data = _data[[column]].to_xarray()
     normalization = proxy.groupby(belongs_to).sum().rename(group="id")
 
     # # Remove regions that do not belong to any geometry
@@ -48,6 +68,10 @@ def disaggregate_polygon_to_raster(
             1 / normalization.sel(id=id) * _data.sel(id=id) * (belongs_to == id) * proxy
         )
         raster_data = raster_data + raster_data_id
+
+    if to_data_crs:
+        print(f"Reprojecting results to `data`'s CRS {data.crs}.")
+        raster_data = raster_data.rio.reproject(data.crs)
 
     return raster_data
 
@@ -81,6 +105,7 @@ def get_uniform_proxy(
 def get_belongs_to_matrix(
     raster_data: xr.Dataset, spatial_units: gpd.GeoSeries
 ) -> xr.Dataset:
+    assert len(raster_data.dims) == 2, "Raster data should have 2 dimensions."
     # create an empty dataarray with the coords matching raster_data and spatial_units
     belongs_to_matrix = xr.DataArray(
         data=None, dims=["y", "x"], coords={"y": raster_data.y, "x": raster_data.x}
