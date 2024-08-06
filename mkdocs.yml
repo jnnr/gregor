@@ -1,9 +1,11 @@
 site_name: Gregor
+copyright: Copyright &copy; since 2024 (MIT licensed)
 nav:
   - Getting started: index.md
   - Examples: 
-    - examples/aggregate.py
     - examples/disaggregate.py
+    - examples/aggregate.py
+    - Running via CLI: examples/cli.md
   - API documentation: 
     - API/aggregate.md
     - API/disaggregate.md
@@ -13,7 +15,7 @@ nav:
 theme:
   name: material
   logo: img/gregor.svg
-  favicon: img/gregor.svg
+  favicon: img/gregor_black.svg
   palette:
     primary: 'black'
     accent: 'black'

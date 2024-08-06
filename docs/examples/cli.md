@@ -1,0 +1,1 @@
+It is also possible to run `gregor` via the command line interface, without writing any python code.
