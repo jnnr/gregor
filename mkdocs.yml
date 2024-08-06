@@ -55,6 +55,7 @@ plugins:
             show_root_toc_entry: false
             show_signature_annotations: false
             inherited_members: true
+            docstring_style: numpy
           paths: [src]
           import:
             - https://docs.python.org/3/objects.inv
