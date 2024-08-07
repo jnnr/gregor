@@ -32,6 +32,9 @@ def disaggregate_polygon_to_raster(
     """
     _data = data.copy()
     index_name = _data.index.name
+    if index_name is None:
+        index_name = "id"
+        _data.index.name = index_name
 
     if not proxy.rio.crs == data.crs:
         print(
