@@ -62,22 +62,27 @@ def _aggregate_file_to_polygon(raster, polygons, stats, nodata=0):
 
 
 def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
+    # Project the polygons to the raster coordinate reference system
+    polygons_projected = polygons.to_crs(raster.rio.crs)
+
     agg_raster_poly = zonal_stats(
-        polygons,
+        polygons_projected,
         raster.values,
         affine=raster.rio.transform(),
         stats=stats,
         nodata=nodata,
     )
+
     results_gdf = gpd.GeoDataFrame(
         agg_raster_poly,
-        index=polygons.index,
-        crs=polygons.crs,
-        geometry=polygons.geometry,
+        index=polygons_projected.index,
+        crs=polygons_projected.crs,
+        geometry=polygons_projected.geometry,
     )
-    results_gdf.index.name = polygons.index.name
 
-    results_gdf = results_gdf.set_crs(raster.rio.crs)
+    results_gdf.index.name = polygons_projected.index.name
+
+    # Project back to the original crs
     results_gdf = results_gdf.to_crs(crs=polygons.crs)
 
     return results_gdf
