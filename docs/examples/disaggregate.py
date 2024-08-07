@@ -23,7 +23,7 @@ population = rxr.open_rasterio(PATH_DATA / "data/population_small.tif").squeeze(
 
 
 # %%
-demand_geo = boundaries_country.merge(demand, left_on="CNTR_CODE", right_on="geo").set_index("NUTS_ID")
+demand_geo = boundaries_country.merge(demand, on="NUTS_ID").set_index("NUTS_ID")
 demand_geo
 
 # %%
@@ -44,8 +44,19 @@ ax2.set_title("Population")
 demand_raster = gregor.disaggregate.disaggregate_polygon_to_raster(demand_geo, column="FC_OTH_HH_E", proxy=population)
 
 # %%
+# Aggregate the raster data back to coutnries for checking
+gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_country)
+
+# %%
+# Which should be equal (up to numerics) to the original data.
+demand
+
+# %%
+demand_NUTS3 = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_NUTS3)
+
+# %%
 xlim, ylim = ((2.5, 7.5), (49, 54))
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9, 3), layout="constrained")
+fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(12, 3), layout="constrained")
 
 demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", aspect=None)
@@ -54,15 +65,14 @@ population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap="Reds", vmax=500, aspect
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
 
 demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap="Greens", aspect=None, vmax=10)
-for ax in (ax1, ax2, ax3):
+
+demand_NUTS3.plot(ax=ax4, column="sum", cmap="Greens", aspect=None, legend=True)
+
+for ax in (ax1, ax2, ax3, ax4):
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
 
-ax1.set_title("National resolution")
-ax2.set_title("Population")
-ax3.set_title("Disaggregated to raster")
-
-
-# %%
-# Compare
-# gregor.aggregate.aggregate_raster_to_polygon(final_energy_hh_raster.FC_OTH_HH_E, boundaries_country)
+ax1.set_title("National\nresolution")
+ax2.set_title("Proxy\n(population)")
+ax3.set_title("Disaggregated\nto raster")
+ax4.set_title("Aggregated\nto NUTS3")
