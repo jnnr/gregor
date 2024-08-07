@@ -4,7 +4,6 @@ nav:
   - Getting started: index.md
   - Examples: 
     - examples/disaggregate.py
-    - examples/aggregate.py
     - Running via CLI: examples/cli.md
   - API documentation: api.md
   - Changelog: Changelog.md
