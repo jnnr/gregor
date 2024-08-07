@@ -6,3 +6,4 @@ xarray
 rasterio
 rioxarray
 rasterstats
+click
