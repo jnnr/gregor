@@ -19,7 +19,7 @@ PATH_DATA = Path(".") / "docs" / "examples"
 final_energy_hh = pd.read_csv(PATH_DATA / "data/demand.csv", index_col=0)
 boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson")
 boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson")
-population = rxr.open_rasterio(PATH_DATA / "data/population_clipped.tif").squeeze()
+population = rxr.open_rasterio(PATH_DATA / "data/population_small.tif").squeeze()
 
 
 # %%
@@ -37,6 +37,8 @@ boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
 for ax in (ax1, ax2):
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
+ax1.set_title("National resolution")
+ax2.set_title("Population")
 
 # %%
 final_energy_hh_raster = gregor.disaggregate.disaggregate_polygon_to_raster(final_energy_hh, column="FC_OTH_HH_E", proxy=population)
@@ -55,6 +57,10 @@ final_energy_hh_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap=
 for ax in (ax1, ax2, ax3):
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
+
+ax1.set_title("National resolution")
+ax2.set_title("Population")
+ax3.set_title("Disaggregated to raster")
 
 
 # %%
