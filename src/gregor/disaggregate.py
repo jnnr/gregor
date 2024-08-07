@@ -7,12 +7,11 @@ from rasterio.features import geometry_mask
 def disaggregate_polygon_to_raster(
     data: gpd.GeoDataFrame,
     column: str,
-    resolution: int = None,
-    proxy: xr.Dataset = None,
+    proxy: xr.Dataset,
     to_data_crs: bool = False,
 ) -> xr.Dataset:
     r"""
-    Disaggregate polygon data to raster data using proxy or uniform density.
+    Disaggregate polygon data to raster data using proxy.
 
     Parameters
     ----------
@@ -20,10 +19,8 @@ def disaggregate_polygon_to_raster(
         Data to be disaggregated.
     column : str
         Column name of the data to be disaggregated.
-    resolution : int, optional
-        Target resolution for uniform proxy. Either resolution or proxy should be provided.
-    proxy : xr.Dataset, optional
-        Proxy data for disaggregation. Either resolution or proxy should be provided.
+    proxy : xr.Dataset
+        Proxy data for disaggregation.
     to_data_crs : bool, optional
         Whether to reproject proxy to `data`'s CRS or keep it in `raster`'s CRS. Default is False.
 
@@ -32,16 +29,7 @@ def disaggregate_polygon_to_raster(
     xr.Dataset
         Disaggregated raster data.
     """
-    # Proxy for each region should add to one
-    if resolution is None and proxy is None:
-        raise ValueError("Either resolution or proxy should be provided.")
-    elif resolution is not None and proxy is not None:
-        raise ValueError("Only one of resolution or proxy should be provided.")
-    elif resolution is not None and proxy is None:
-        print("Disaggregating using resolution.")
-        proxy = get_uniform_proxy(data.geometry, resolution)
-    elif resolution is None and proxy is not None:
-        print("Disaggregating using proxy.")
+    # TODO: Proxy for each region should add to one
 
     _data = data.copy()
     if not proxy.rio.crs == data.crs:
