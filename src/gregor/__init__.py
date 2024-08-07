@@ -1,4 +1,1 @@
-from . import aggregate
-from . import disaggregate
-from . import plot
-from . import raster
+from . import aggregate, disaggregate, raster
