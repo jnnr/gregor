@@ -16,5 +16,10 @@ Alternatively, install an editable local version in an environment by cloning th
 
     pip install -e <path-to-repo>
 
-# Usage
+## Usage
 
+Please have a look at the examples presented in the [documentation](https://gregor.readthedocs.io/en/latest/). 
+
+## Development
+
+If you encounter a bug, consider opening an issue on [GitHub](https://github.com/jnnr/gregor/issues).
