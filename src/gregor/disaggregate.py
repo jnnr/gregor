@@ -12,6 +12,7 @@ def disaggregate_polygon_to_raster(
 ) -> xr.Dataset:
     r"""
     Disaggregate polygon data to raster data using proxy.
+    Normalization of the proxy happens internally.
 
     Parameters
     ----------
@@ -29,8 +30,6 @@ def disaggregate_polygon_to_raster(
     xr.Dataset
         Disaggregated raster data.
     """
-    # TODO: Proxy for each region should add to one
-
     _data = data.copy()
     if not proxy.rio.crs == data.crs:
         print(
