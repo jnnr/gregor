@@ -1,9 +1,13 @@
 # %% [markdown]
-# # Disaggregate spatial data
+# # Disaggregating spatial data
 # This example demonstrates how to aggregate spatial data using `gregor`.
-# Imagine that you have data that is described on national level, which you want to disaggregate to a finer resolution.
-# For example, you have data on energy demand per country (https://ec.europa.eu/eurostat/databrowser/view/nrg_d_hhq/default/table?lang=en), which you want to disaggregate to a raster. Assuming that
-# energy demand is proportional to population density (), you can use population as a proxy to disaggregate.
+# Imagine that you have some data that is described on national level, which you want to disaggregate to a finer resolution.
+# This could be household energy demand per country, which is provided by EUROSTAT (https://ec.europa.eu/eurostat/databrowser/view/nrg_d_hhq/default/table?lang=en).
+# Ideally, you would have another source with higher resolution, but in lack of that, you want to use some assumptions to disaggregate your data to higher resolution.
+# Assuming that energy demand is proportional to population density, you want use population data () as a proxy.
+# `gregor` helps you doing that.
+#
+# First, import the necessary packages and data on household energy demand, boundaries on country and NUTS3 resolution and population data.
 
 # %%
 import gregor
@@ -21,10 +25,15 @@ boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson")
 boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson")
 population = rxr.open_rasterio(PATH_DATA / "data/population_small.tif").squeeze()
 
+# %% [markdown]
+# Here, we merge the demand data with the boundaries on country level, to connect the energy demand with the geometries.
 
 # %%
 demand_geo = boundaries_country.merge(demand, on="NUTS_ID").set_index("NUTS_ID")
 demand_geo
+
+# %% [markdown]
+# This is how our inital data looks like.
 
 # %%
 # Plot
@@ -40,20 +49,29 @@ for ax in (ax1, ax2):
 ax1.set_title("National resolution")
 ax2.set_title("Population")
 
+# %% [markdown]
+# Now, we disaggregate the demand data using the population data as a proxy. The result is a raster dataset with the resolution of the proxy.
+
 # %%
 demand_raster = gregor.disaggregate.disaggregate_polygon_to_raster(demand_geo, column="FC_OTH_HH_E", proxy=population)
 
+# %% [markdown]
+# Aggregate the raster data back to countries for checking. The result should be equal (up to numerics) to the original data.
 # %%
-# Aggregate the raster data back to coutnries for checking
 gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_country)
 
 # %%
-# Which should be equal (up to numerics) to the original data.
+# The original demand for comparison
 demand
+
+# %% [markdown]
+# Finally, we aggregate the raster data to NUTS3 level, which is the resolution we are interested in.
 
 # %%
 demand_NUTS3 = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_NUTS3)
 
+# %% [markdown]
+# This is a plot of the original data and the disaggregated data in raster format, as well as the data aggregate to NUTS3 resolution.
 # %%
 xlim, ylim = ((2.5, 7.5), (49, 54))
 fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(12, 3), layout="constrained")
