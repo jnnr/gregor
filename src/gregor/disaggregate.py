@@ -48,25 +48,23 @@ def disaggregate_polygon_to_raster(
     _data = _data.sel({index_name: normalization.coords[index_name]})
 
     # Disaggregate data to raster using proxy
-    # raster_data_{x,y} = 1/normalization_{id} * _data_{id} * belongs_to_{id,x,y} * proxy_{x,y}
-    raster_data = xr.DataArray(
-        data=0, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x}
-    )
+    # raster_{x,y} = 1/normalization_{id} * _data_{id} * belongs_to_{id,x,y} * proxy_{x,y}
+    raster = xr.DataArray(data=0, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x})
     for id in normalization.coords[index_name]:
-        raster_data_id = (
+        raster_id = (
             1
             / normalization.sel({index_name: id})
             * _data.sel({index_name: id})
             * (belongs_to == id)
             * proxy
         )
-        raster_data = raster_data + raster_data_id
+        raster = raster + raster_id
 
     if to_data_crs:
         print(f"Reprojecting results to `data`'s CRS {data.crs}.")
-        raster_data = raster_data.rio.reproject(data.crs)
+        raster = raster.rio.reproject(data.crs)
 
-    return raster_data
+    return raster
 
 
 def get_uniform_proxy(
@@ -107,15 +105,13 @@ def get_uniform_proxy(
     return uniform_proxy
 
 
-def get_belongs_to_matrix(
-    raster_data: xr.Dataset, polygons: gpd.GeoSeries
-) -> xr.Dataset:
+def get_belongs_to_matrix(raster: xr.Dataset, polygons: gpd.GeoSeries) -> xr.Dataset:
     r"""
     Get a matrix which indicates which polygon each raster point belongs to.
 
     Parameters
     ----------
-    raster_data : xr.Dataset
+    raster : xr.Dataset
         Raster data to get the matrix for.
     polygons : gpd.GeoSeries
         Polygons to compute the matrix for.
@@ -125,22 +121,22 @@ def get_belongs_to_matrix(
     xr.Dataset
         Matrix which indicates which polygon each raster point belongs to.
     """
-    assert len(raster_data.dims) == 2, "Raster data should have 2 dimensions."
-    # create an empty dataarray with the coords matching raster_data and spatial_units
+    assert len(raster.dims) == 2, "Raster data should have 2 dimensions."
+    # create an empty dataarray with the coords matching raster and spatial_units
     belongs_to_matrix = xr.DataArray(
-        data=None, dims=["y", "x"], coords={"y": raster_data.y, "x": raster_data.x}
+        data=None, dims=["y", "x"], coords={"y": raster.y, "x": raster.x}
     )
-    belongs_to_matrix.attrs["transform"] = raster_data.rio.transform
-    belongs_to_matrix.attrs["crs"] = raster_data.rio.crs
+    belongs_to_matrix.attrs["transform"] = raster.rio.transform
+    belongs_to_matrix.attrs["crs"] = raster.rio.crs
 
     for id, geometry in polygons.items():
         mask = geometry_mask(
             [geometry],
-            out_shape=raster_data.shape,
-            transform=raster_data.rio.transform(),
+            out_shape=raster.shape,
+            transform=raster.rio.transform(),
             invert=True,
         )
-        mask = xr.DataArray(mask, coords=raster_data.coords, dims=raster_data.dims)
+        mask = xr.DataArray(mask, coords=raster.coords, dims=raster.dims)
         # assert belongs_to_matrix.where(mask).isnull().all(), "Trying to assign to value which is not None. Maybe cause of overlapping geometries."
         belongs_to_matrix = belongs_to_matrix.where(~mask, id)
 
