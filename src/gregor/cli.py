@@ -16,7 +16,7 @@ def agg(raster, polygons, destination, stats):
     if Path(destination).exists():
         raise ValueError("Destination file already exists.")
 
-    _raster = rxr.open_rasterio(raster)
+    _raster = rxr.open_rasterio(raster).squeeze()
     _polygons = gpd.read_file(polygons)
 
     aggregated = gregor.aggregate.aggregate_raster_to_polygon(_raster, _polygons, stats)
@@ -35,6 +35,8 @@ def disagg(data, column, proxy, destination, to_data_crs):
 
     _data = gpd.read_file(data)
     _proxy = rxr.open_rasterio(proxy)
+
+    # Clip proxy to extent of data for better performance
     minx, miny, maxx, maxy = _data.to_crs(_proxy.rio.crs).total_bounds
     _proxy = gregor.raster.clip(_proxy, minx, miny, maxx, maxy).squeeze()
 
