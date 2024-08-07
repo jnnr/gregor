@@ -1,0 +1,8 @@
+'pandas>=1.2',
+'numpy',
+'matplotlib',
+'geopandas',
+'xarray',
+'rasterio',
+'rioxarray',
+'rasterstats',

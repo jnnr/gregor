@@ -5,7 +5,7 @@ authors = [
 ]
 description = "A library for spatial aggregation and disaggregation"
 version = "0.0.1"
-dynamic = ["readme"]
+dynamic = ["readme", "dependencies"]
 
 # complete classifier list:
 # http://pypi.org/classifiers/
@@ -20,17 +20,6 @@ keywords = [
   'gis',
 ]
 
-dependencies = [
-  # https://stackoverflow.com/questions/14399534
-  'pandas>=1.2',
-  'numpy',
-  'matplotlib',
-  'geopandas',
-  'xarray',
-  'rasterio',
-  'rioxarray',
-  'rasterstats',
-]
 requires-python = ">=3.8, <4"
 
 [project.urls]
@@ -44,6 +33,7 @@ requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=6.2"]
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"]}
+dependencies = { file = ["requirements/base.txt"] }
 
 [tool.ruff]
 builtins = ["ellipsis"]

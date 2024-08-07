@@ -1,4 +1,6 @@
 version: 2
+conda:
+  environment: requirements/base.txt
 build:
   os: ubuntu-22.04
   tools:
