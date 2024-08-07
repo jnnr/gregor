@@ -31,6 +31,8 @@ def disaggregate_polygon_to_raster(
         Disaggregated raster data.
     """
     _data = data.copy()
+    index_name = _data.index.name
+
     if not proxy.rio.crs == data.crs:
         print(
             f"CRS of `proxy` ({proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
@@ -40,19 +42,23 @@ def disaggregate_polygon_to_raster(
     # Each raster point belongs to one spatial_unit
     belongs_to = get_belongs_to_matrix(proxy, _data.geometry)
     _data = _data[[column]].to_xarray()
-    normalization = proxy.groupby(belongs_to).sum().rename(group="id")
+    normalization = proxy.groupby(belongs_to).sum().rename(group=index_name)
 
     # # Remove regions that do not belong to any geometry
-    _data = _data.sel(id=normalization.coords["id"])
+    _data = _data.sel({index_name: normalization.coords[index_name]})
 
     # Disaggregate data to raster using proxy
     # raster_data_{x,y} = 1/normalization_{id} * _data_{id} * belongs_to_{id,x,y} * proxy_{x,y}
     raster_data = xr.DataArray(
         data=0, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x}
     )
-    for id in normalization.coords["id"]:
+    for id in normalization.coords[index_name]:
         raster_data_id = (
-            1 / normalization.sel(id=id) * _data.sel(id=id) * (belongs_to == id) * proxy
+            1
+            / normalization.sel({index_name: id})
+            * _data.sel({index_name: id})
+            * (belongs_to == id)
+            * proxy
         )
         raster_data = raster_data + raster_data_id
 

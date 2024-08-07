@@ -16,21 +16,21 @@ from pathlib import Path
 # %%
 # Load all the input data
 PATH_DATA = Path(".") / "docs" / "examples"
-final_energy_hh = pd.read_csv(PATH_DATA / "data/demand.csv", index_col=0)
+demand = pd.read_csv(PATH_DATA / "data/demand.csv", index_col=0)
 boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson")
 boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson")
 population = rxr.open_rasterio(PATH_DATA / "data/population_small.tif").squeeze()
 
 
 # %%
-final_energy_hh = boundaries_country.merge(final_energy_hh, left_on="CNTR_CODE", right_on="geo")
-final_energy_hh = final_energy_hh.rename(columns={"NUTS_ID": "id"}).set_index("id")
+demand_geo = boundaries_country.merge(demand, left_on="CNTR_CODE", right_on="geo").set_index("NUTS_ID")
+demand_geo
 
 # %%
 # Plot
 xlim, ylim = ((2.2, 7.5), (49, 54))
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3), layout="constrained")
-final_energy_hh.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", aspect=None)
 population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap="Blues", vmax=500, aspect=None)
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
@@ -41,19 +41,19 @@ ax1.set_title("National resolution")
 ax2.set_title("Population")
 
 # %%
-final_energy_hh_raster = gregor.disaggregate.disaggregate_polygon_to_raster(final_energy_hh, column="FC_OTH_HH_E", proxy=population)
+demand_raster = gregor.disaggregate.disaggregate_polygon_to_raster(demand_geo, column="FC_OTH_HH_E", proxy=population)
 
 # %%
 xlim, ylim = ((2.5, 7.5), (49, 54))
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(9, 3), layout="constrained")
 
-final_energy_hh.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", aspect=None)
 
 population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap="Reds", vmax=500, aspect=None)
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
 
-final_energy_hh_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap="Greens", aspect=None, vmax=10)
+demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap="Greens", aspect=None, vmax=10)
 for ax in (ax1, ax2, ax3):
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
