@@ -36,7 +36,7 @@ def clip(raster: str | Path | xr.DataArray, minx, miny, maxx, maxy, destination=
         Clipped raster.
     """
     if isinstance(raster, xr.DataArray):
-        return _clip_xarray()
+        return _clip_xarray(raster, minx, miny, maxx, maxy)
     if isinstance(raster, str) or isinstance(raster, Path):
         if destination is None:
             raise ValueError("Destination must be provided when clipping a file.")
