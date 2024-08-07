@@ -8,6 +8,7 @@ build:
   jobs:
     post_create_environment:
       - conda install python=3.12 --file requirements/dev.txt
+      - pip install --no-deps .
 
 mkdocs:
   configuration: mkdocs.yml
