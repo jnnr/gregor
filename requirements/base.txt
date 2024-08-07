@@ -1,8 +1,8 @@
-'pandas>=1.2',
-'numpy',
-'matplotlib',
-'geopandas',
-'xarray',
-'rasterio',
-'rioxarray',
-'rasterstats',
+pandas >= 1.2
+numpy
+matplotlib
+geopandas
+xarray
+rasterio
+rioxarray
+rasterstats
