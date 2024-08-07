@@ -77,13 +77,25 @@ def disaggregate_polygon_to_raster(
 
 
 def get_uniform_proxy(
-    spatial_units: gpd.GeoSeries, raster_resolution: tuple[int, int]
+    polygons: gpd.GeoSeries, raster_resolution: tuple[int, int]
 ) -> xr.Dataset:
     r"""
-    Get a uniform proxy for each region.
+    Get a uniform proxy which sums to one for each region.
+
+    Parameters
+    ----------
+    polygons : gpd.GeoSeries
+        Polygons to compute the proxy for.
+    raster_resolution : tuple[int, int]
+        Resolution of the desired raster proxy.
+
+    Returns
+    -------
+    xr.Dataset
+        Uniform proxy which sums to 1 in each region.
     """
     # get spatial extent of spatial_units
-    x_min, y_min, x_max, y_max = spatial_units.total_bounds
+    x_min, y_min, x_max, y_max = polygons.total_bounds
 
     # define coords
     x_coords = np.linspace(x_min, x_max, raster_resolution[0])
@@ -97,14 +109,29 @@ def get_uniform_proxy(
     # TODO Set transform and crs
     # uniform_proxy = uniform_proxy.rio.set_spatial_dims('x', 'y')
     # uniform_proxy = uniform_proxy.rio.write_transform()
-    uniform_proxy = uniform_proxy.rio.set_crs(spatial_units.crs)
+    uniform_proxy = uniform_proxy.rio.set_crs(polygons.crs)
 
     return uniform_proxy
 
 
 def get_belongs_to_matrix(
-    raster_data: xr.Dataset, spatial_units: gpd.GeoSeries
+    raster_data: xr.Dataset, polygons: gpd.GeoSeries
 ) -> xr.Dataset:
+    r"""
+    Get a matrix which indicates which polygon each raster point belongs to.
+
+    Parameters
+    ----------
+    raster_data : xr.Dataset
+        Raster data to get the matrix for.
+    polygons : gpd.GeoSeries
+        Polygons to compute the matrix for.
+
+    Returns
+    -------
+    xr.Dataset
+        Matrix which indicates which polygon each raster point belongs to.
+    """
     assert len(raster_data.dims) == 2, "Raster data should have 2 dimensions."
     # create an empty dataarray with the coords matching raster_data and spatial_units
     belongs_to_matrix = xr.DataArray(
@@ -113,7 +140,7 @@ def get_belongs_to_matrix(
     belongs_to_matrix.attrs["transform"] = raster_data.rio.transform
     belongs_to_matrix.attrs["crs"] = raster_data.rio.crs
 
-    for id, geometry in spatial_units.items():
+    for id, geometry in polygons.items():
         mask = geometry_mask(
             [geometry],
             out_shape=raster_data.shape,

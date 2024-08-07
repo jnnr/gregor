@@ -12,7 +12,22 @@ def aggregate_raster_to_polygon(
     stats: str = "sum",
 ) -> gpd.GeoDataFrame:
     r"""
-    Aggregate raster data with spatial units.
+    Aggregate raster data to polygons.
+
+    Parameters
+    ----------
+    raster : str | Path | xr.DataArray
+        Path to the raster file or xarray DataArray.
+    polygons : gpd.GeoSeries | gpd.GeoDataFrame
+        GeoSeries or GeoDataFrame with the spatial units.
+    stats : str, optional
+        Statistics to compute, by default "sum".
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame containing the original geometries
+        and the aggregated statistics.
     """
     if isinstance(raster, (str, Path)):
         results_gdf = _aggregate_file_to_polygon(raster, polygons, stats)
@@ -71,6 +86,24 @@ def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
 def aggregate_point_to_polygon(
     points: gpd.GeoDataFrame, polygons: gpd.GeoSeries | gpd.GeoDataFrame, aggfunc="sum"
 ):
+    r"""
+    Aggregate point data to polygons.
+
+    Parameters
+    ----------
+    points : gpd.GeoDataFrame
+        GeoDataFrame containing data defined on point geometries.
+    polygons : gpd.GeoSeries | gpd.GeoDataFrame
+        GeoSeries or GeoDataFrame of polygon geometries.
+    aggfunc : str, optional
+        Aggregation function, by default "sum".
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame containing the original geometries
+        and the aggregated statistics.
+    """
     if isinstance(polygons, gpd.GeoSeries):
         _polygons = polygons.to_frame()
     elif isinstance(polygons, gpd.GeoDataFrame):
