@@ -31,6 +31,9 @@ repository = "https://github.com/jnnr/gregor.git"
 build-backend = "setuptools.build_meta"
 requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=6.2"]
 
+[project.scripts]
+gregor = "gregor.cli:cli"
+
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"]}
 dependencies = { file = ["requirements/base.txt"] }
