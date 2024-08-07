@@ -1,5 +1,5 @@
 [project]
-name = "spatial-disaggregation"
+name = "gregor"
 authors = [
   {name = "Jann Launer", email = "j.a.c.launer@tudelft.nl"},
 ]
@@ -24,17 +24,19 @@ dependencies = [
   # https://stackoverflow.com/questions/14399534
   'pandas>=1.2',
   'numpy',
+  'matplotlib',
   'geopandas',
   'xarray',
   'rasterio',
+  'rioxarray',
   'rasterstats',
 ]
 requires-python = ">=3.8, <4"
 
 [project.urls]
-changelog = "https://github.com/jnnr/spatial-disaggregation/blob/main/CHANGELOG.rst"
-homepage = "https://github.com/jnnr/spatial-disaggregation"
-repository = "https://github.com/jnnr/spatial-disaggregation.git"
+changelog = "https://github.com/jnnr/gregor/blob/main/CHANGELOG.rst"
+homepage = "https://github.com/jnnr/gregor"
+repository = "https://github.com/jnnr/gregor.git"
 
 [build-system]
 build-backend = "setuptools.build_meta"
@@ -43,20 +45,34 @@ requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=6.2"]
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"]}
 
-[tool.black]
-exclude = '''
-/(
-    \
-  |
-    \.eggs
-  | \.git
-  | \.mypy_cache
-  | meta/migrations
-  | docs
-  | .venv
-)/
-'''
-max-line-length=100
+[tool.ruff]
+builtins = ["ellipsis"]
+target-version = "py38"
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+exclude = [
+  ".eggs",
+  "doc",
+  "_typed_ops.pyi",
+]
+ignore = [
+  "E402",
+  "E501",
+  "E731",
+  "E741",
+]
+select = [
+  "F", # Pyflakes
+  "E", # Pycodestyle
+  "W", # isort
+  "I",
+  "UP", # Pyupgrade
+]
+
+[tool.ruff.lint.per-file-ignores]
+# F401: imported but unsued
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["sampleproject"]
+lines-after-imports = 2

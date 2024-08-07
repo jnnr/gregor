@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 
 
-
 def plot_vector(vector, ax=None, **kwargs):
     if ax is None:
         fig, ax = plt.subplots()

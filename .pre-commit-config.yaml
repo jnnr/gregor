@@ -3,24 +3,21 @@ default_stages: [commit]
 fail_fast: true
 
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
-    hooks:
-      - id: trailing-whitespace
-        files: (^|/)a/.+\.(py|html|sh|css|js)$
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+    - id: trailing-whitespace
+      files: (^|/)a/.+\.(py|html|sh|css|js)$
+    - id: check-added-large-files
+      args: ["--maxkb=2000"]
 
--   repo: local
-    hooks:
-      - id: black
-        name: black
-        entry: black
-        language: python
-        types: [python]
-
--   repo: local
-    hooks:
-      - id: flake8
-        name: flake8
-        entry: flake8
-        language: python
-        types: [python]
+# Linting with ruff
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  # Ruff version.
+  rev: 'v0.1.6'
+  hooks:
+    - id: ruff
+      types_or: [ python, pyi, jupyter ]
+      args: [--fix, --exit-non-zero-on-fix]
+    - id: ruff-format
+      types_or: [ python, pyi, jupyter ]

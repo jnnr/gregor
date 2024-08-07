@@ -4,12 +4,12 @@ authors:
   - family-names: "Launer"
     given-names: "Jann"
     alias: "@jnnr"
-    affiliation: ""
+    affiliation: "TU Delft"
     orcid: "https://orcid.org/0009-0007-2187-1488"
-title: "spatial-disaggregation"
+title: "Gregor"
 type: software
-license: 
+license: MIT
 version: 0.0.1
 doi:
 date-released: 
-url: "https://github.com/jnnr/spatial-disaggregation"
+url: "https://github.com/jnnr/gregor"

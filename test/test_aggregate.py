@@ -1,9 +1,8 @@
 import geopandas as gpd
-import rioxarray as rxr
-import pytest
 import numpy as np
-import pandas as pd
-from spatial_disaggregation.aggregate import aggregate_raster_to_polygon
+import pytest
+import rioxarray as rxr
+from gregor.aggregate import aggregate_raster_to_polygon
 
 
 @pytest.fixture
@@ -27,33 +26,41 @@ def points():
 
 
 def test_agg_tif_2x2(square_segmentation_2x2):
-    agg_raster_poly = aggregate_raster_to_polygon("test/_files/raster.tif", square_segmentation_2x2)
+    agg_raster_poly = aggregate_raster_to_polygon(
+        "test/_files/raster.tif", square_segmentation_2x2
+    )
 
     expected = [
-        [2.75, 1.],
-        [0.75, 2.],
+        [2.75, 1.0],
+        [0.75, 2.0],
     ]
 
-    assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(2, 2), k=1) == expected).all()
+    assert (
+        np.rot90(agg_raster_poly["sum"].to_numpy().reshape(2, 2), k=1) == expected
+    ).all()
 
 
 def test_agg_array_2x2(square_segmentation_2x2, dummy_raster):
     agg_raster_poly = aggregate_raster_to_polygon(dummy_raster, square_segmentation_2x2)
 
     expected = [
-        [2.75, 1.],
-        [0.75, 2.],
+        [2.75, 1.0],
+        [0.75, 2.0],
     ]
 
-    assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(2, 2), k=1) == expected).all()
+    assert (
+        np.rot90(agg_raster_poly["sum"].to_numpy().reshape(2, 2), k=1) == expected
+    ).all()
 
 
 @pytest.mark.skip(
-        "rasterstats.zonal_stats does provide exact aggregation when pixels are not aligned with polygons. "
-        "This is because a pixel can only belong or not belong to a polygon and not be split."
+    "rasterstats.zonal_stats does provide exact aggregation when pixels are not aligned with polygons. "
+    "This is because a pixel can only belong or not belong to a polygon and not be split."
 )
 def test_agg_tif_3x3(square_segmentation_3x3):
-    agg_raster_poly = aggregate_raster_to_polygon("test/_files/raster.tif", square_segmentation_3x3)
+    agg_raster_poly = aggregate_raster_to_polygon(
+        "test/_files/raster.tif", square_segmentation_3x3
+    )
 
     expected = [
         [2.50, 1.50, 1.00],
@@ -61,15 +68,20 @@ def test_agg_tif_3x3(square_segmentation_3x3):
         [0.75, 0.50, 2.00],
     ]
 
-    assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(3, 3), k=1) == np.array(expected)).all()
+    assert (
+        np.rot90(agg_raster_poly["sum"].to_numpy().reshape(3, 3), k=1)
+        == np.array(expected)
+    ).all()
 
 
 @pytest.mark.skip(
-        "rasterstats.zonal_stats does provide exact aggregation when pixels are not aligned with polygons. "
-        "This is because a pixel can only belong or not belong to a polygon and not be split."
+    "rasterstats.zonal_stats does provide exact aggregation when pixels are not aligned with polygons. "
+    "This is because a pixel can only belong or not belong to a polygon and not be split."
 )
 def test_agg_array_3x3(square_segmentation_3x3, dummy_raster):
-    agg_raster_poly = aggregate_raster_to_polygon(dummy_raster(), square_segmentation_3x3())
+    agg_raster_poly = aggregate_raster_to_polygon(
+        dummy_raster(), square_segmentation_3x3()
+    )
 
     expected = [
         [2.50, 1.50, 1.00],
@@ -77,4 +89,7 @@ def test_agg_array_3x3(square_segmentation_3x3, dummy_raster):
         [0.75, 0.50, 2.00],
     ]
 
-    assert (np.rot90(agg_raster_poly["sum"].to_numpy().reshape(3, 3), k=1) == np.array(expected)).all()
+    assert (
+        np.rot90(agg_raster_poly["sum"].to_numpy().reshape(3, 3), k=1)
+        == np.array(expected)
+    ).all()
