@@ -12,9 +12,34 @@ from shapely.geometry import box
 
 
 def clip(raster: str | Path | xr.DataArray, minx, miny, maxx, maxy, destination=None):
+    r"""
+    Clip raster to bounding box.
+
+    Parameters
+    ----------
+    raster : str | Path | xr.DataArray
+        Path to the raster file or xarray DataArray.
+    minx : float
+        Minimum x-coordinate of the bounding box.
+    miny : float
+        Minimum y-coordinate of the bounding box.
+    maxx : float
+        Maximum x-coordinate of the bounding box.
+    maxy : float
+        Maximum y-coordinate of the bounding box.
+    destination : str | Path, optional
+        Path to save the clipped raster, by default None.
+
+    Returns
+    -------
+    xr.DataArray
+        Clipped raster.
+    """
     if isinstance(raster, xr.DataArray):
         return _clip_xarray()
     if isinstance(raster, str) or isinstance(raster, Path):
+        if destination is None:
+            raise ValueError("Destination must be provided when clipping a file.")
         _clip_file(raster, minx, miny, maxx, maxy, destination)
 
 

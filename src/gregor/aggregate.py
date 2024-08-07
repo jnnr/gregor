@@ -12,7 +12,22 @@ def aggregate_raster_to_polygon(
     stats: str = "sum",
 ) -> gpd.GeoDataFrame:
     r"""
-    Aggregate raster data with spatial units.
+    Aggregate raster data to polygons.
+
+    Parameters
+    ----------
+    raster : str | Path | xr.DataArray
+        Path to the raster file or xarray DataArray.
+    polygons : gpd.GeoSeries | gpd.GeoDataFrame
+        GeoSeries or GeoDataFrame with the spatial units.
+    stats : str, optional
+        Statistics to compute, by default "sum".
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame containing the original geometries
+        and the aggregated statistics.
     """
     if isinstance(raster, (str, Path)):
         results_gdf = _aggregate_file_to_polygon(raster, polygons, stats)
@@ -47,22 +62,27 @@ def _aggregate_file_to_polygon(raster, polygons, stats, nodata=0):
 
 
 def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
+    # Project the polygons to the raster coordinate reference system
+    polygons_projected = polygons.to_crs(raster.rio.crs)
+
     agg_raster_poly = zonal_stats(
-        polygons,
+        polygons_projected,
         raster.values,
         affine=raster.rio.transform(),
         stats=stats,
         nodata=nodata,
     )
+
     results_gdf = gpd.GeoDataFrame(
         agg_raster_poly,
-        index=polygons.index,
-        crs=polygons.crs,
-        geometry=polygons.geometry,
+        index=polygons_projected.index,
+        crs=polygons_projected.crs,
+        geometry=polygons_projected.geometry,
     )
-    results_gdf.index.name = polygons.index.name
 
-    results_gdf = results_gdf.set_crs(raster.rio.crs)
+    results_gdf.index.name = polygons_projected.index.name
+
+    # Project back to the original crs
     results_gdf = results_gdf.to_crs(crs=polygons.crs)
 
     return results_gdf
@@ -71,6 +91,24 @@ def _aggregate_xarray_to_polygon(raster, polygons, stats, nodata=0):
 def aggregate_point_to_polygon(
     points: gpd.GeoDataFrame, polygons: gpd.GeoSeries | gpd.GeoDataFrame, aggfunc="sum"
 ):
+    r"""
+    Aggregate point data to polygons.
+
+    Parameters
+    ----------
+    points : gpd.GeoDataFrame
+        GeoDataFrame containing data defined on point geometries.
+    polygons : gpd.GeoSeries | gpd.GeoDataFrame
+        GeoSeries or GeoDataFrame of polygon geometries.
+    aggfunc : str, optional
+        Aggregation function, by default "sum".
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame containing the original geometries
+        and the aggregated statistics.
+    """
     if isinstance(polygons, gpd.GeoSeries):
         _polygons = polygons.to_frame()
     elif isinstance(polygons, gpd.GeoDataFrame):

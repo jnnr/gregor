@@ -20,7 +20,7 @@ def square_segmentation_3x3():
     return gpd.read_file("test/_files/segmentation_3x3.geojson").set_index("id")
 
 
-def test_disaggregate_using_proxy_2x2(dummy_raster, square_segmentation_2x2):
+def test_disaggregate_2x2(dummy_raster, square_segmentation_2x2):
     data = square_segmentation_2x2
 
     data["value"] = [2, 2, 2, 2]
@@ -43,9 +43,5 @@ def test_disaggregate_using_proxy_2x2(dummy_raster, square_segmentation_2x2):
     assert np.allclose(disaggregated["value"].values, expected)
 
 
-def test_disaggregate_using_resolution_2x2():
-    pass
-
-
-def test_disaggregate_using_proxy_3x3():
+def test_disaggregate_3x3():
     pass

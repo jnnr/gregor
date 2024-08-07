@@ -6,11 +6,7 @@ nav:
     - examples/disaggregate.py
     - examples/aggregate.py
     - Running via CLI: examples/cli.md
-  - API documentation: 
-    - API/aggregate.md
-    - API/disaggregate.md
-    - API/plot.md
-    - API/raster.md
+  - API documentation: api.md
   - Changelog: Changelog.md
 theme:
   name: material
