@@ -7,12 +7,12 @@ on:
       - test-release # update pyproject.toml version number
 
 jobs:
-  build-n-publish:
+  build-and-publish:
     name: Build and publish Python distributions to TestPyPI
     runs-on: ubuntu-latest
     environment: pypi-publish
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@main
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
