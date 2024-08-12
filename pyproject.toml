@@ -4,8 +4,9 @@ authors = [
   {name = "Jann Launer", email = "j.a.c.launer@tudelft.nl"},
 ]
 description = "A library for spatial aggregation and disaggregation"
+readme = "README.md"
 version = "0.0.1"
-dynamic = ["readme", "dependencies"]
+dynamic = ["dependencies"]
 
 # complete classifier list:
 # http://pypi.org/classifiers/
@@ -35,7 +36,6 @@ requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=6.2"]
 gregor = "gregor.cli:cli"
 
 [tool.setuptools.dynamic]
-readme = {file = ["README.md"]}
 dependencies = { file = ["requirements/base.txt"] }
 
 [tool.ruff]
