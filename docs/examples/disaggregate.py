@@ -80,7 +80,7 @@ reds = LinearSegmentedColormap.from_list('', ['white', 'red'])
 greens = LinearSegmentedColormap.from_list('', ['white', 'Green'])
 vmax = demand_NUTS3["sum"].max()
 
-fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(12, 3), layout="constrained")
+fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(9, 4), layout="constrained")
 
 demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", linewidth=1, aspect=None)
@@ -88,7 +88,7 @@ boundaries_country.geometry.boundary.plot(ax=ax1, color="black", linewidth=1, as
 population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap=reds, vmax=500, aspect=None, add_colorbar=True, cbar_kwargs={'location': 'bottom'})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", linewidth=1, aspect=None)
 
-demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom'})
+demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': None})
 boundaries_country.geometry.boundary.plot(ax=ax3, color="black", linewidth=1, aspect=None)
 
 demand_NUTS3.plot(ax=ax4, column="sum", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
