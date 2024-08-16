@@ -13,6 +13,7 @@
 import gregor
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import geopandas as gpd
 import rioxarray as rxr
 from pathlib import Path
@@ -74,21 +75,29 @@ demand_NUTS3 = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH
 # This is a plot of the original data and the disaggregated data in raster format, as well as the data aggregate to NUTS3 resolution.
 # %%
 xlim, ylim = ((2.5, 7.5), (49, 54))
+
+reds = LinearSegmentedColormap.from_list('', ['white', 'red'])
+greens = LinearSegmentedColormap.from_list('', ['white', 'Green'])
+vmax = demand_NUTS3["sum"].max()
+
 fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(12, 3), layout="constrained")
 
-demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
-boundaries_country.geometry.boundary.plot(ax=ax1, color="black", aspect=None)
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+boundaries_country.geometry.boundary.plot(ax=ax1, color="black", linewidth=1, aspect=None)
 
-population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap="Reds", vmax=500, aspect=None)
-boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
+population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap=reds, vmax=500, aspect=None, add_colorbar=True, cbar_kwargs={'location': 'bottom'})
+boundaries_country.geometry.boundary.plot(ax=ax2, color="black", linewidth=1, aspect=None)
 
-demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap="Greens", aspect=None, vmax=10)
+demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom'})
+boundaries_country.geometry.boundary.plot(ax=ax3, color="black", linewidth=1, aspect=None)
 
-demand_NUTS3.plot(ax=ax4, column="sum", cmap="Greens", aspect=None, legend=True)
+demand_NUTS3.plot(ax=ax4, column="sum", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+demand_NUTS3.geometry.boundary.plot(ax=ax4, color="black", linewidth=1, aspect=None)
 
 for ax in (ax1, ax2, ax3, ax4):
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
+    ax.set_axis_off()
 
 ax1.set_title("National\nresolution")
 ax2.set_title("Proxy\n(population)")
