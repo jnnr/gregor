@@ -1,5 +1,6 @@
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import xarray as xr
 from rasterio.features import geometry_mask
 
@@ -144,3 +145,72 @@ def get_belongs_to_matrix(raster: xr.Dataset, polygons: gpd.GeoSeries) -> xr.Dat
         belongs_to_matrix = belongs_to_matrix.where(~mask, id)
 
     return belongs_to_matrix
+
+
+def disaggregate_polygon_to_point(
+    data: gpd.GeoDataFrame,
+    column: str,
+    proxy: gpd.GeoDataFrame,
+    proxy_column: str,
+    to_data_crs: bool = False,
+) -> gpd.GeoDataFrame:
+    r"""
+    Disaggregate polygon data to point data using proxy.
+
+    Parameters
+    ----------
+    data : gpd.GeoDataFrame
+        Data to be disaggregated.
+    column : str
+        Column name of the data to be disaggregated.
+    proxy : gpd.GeoSeries
+        Proxy data with point geometries for disaggregation.
+    proxy_column : str
+        Column name of the proxy data.
+    to_data_crs : bool, optional
+        Whether to reproject proxy to `data`'s CRS or keep it in `raster`'s CRS. Default is False.
+    """
+    _data = data.copy()
+    points = proxy.copy()
+
+    # compare crs. If not the same, project data to proxy's crs
+    if not proxy.crs == _data.crs:
+        print(
+            f"CRS of `proxy` ({proxy.crs}) does not match CRS of `data` ({_data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
+        )
+        _data = _data.to_crs(proxy.crs)
+
+    # Find out which polygon each point belongs to.
+    points["belongs_to"] = points.geometry.apply(
+        lambda point: _data.index[_data.contains(point)]
+    )
+
+    # Make sure that it belongs to only one polygon
+    assert (
+        points.belongs_to.apply(len).max() == 1
+    ), "Every Point should belongs to exaxtly one polygon."
+    points.belongs_to = points.belongs_to.apply(lambda x: x[0])
+
+    # Warn if there are polygons without points.
+    polygons_without_points = set(set(data.index)).difference(points.belongs_to)
+    if polygons_without_points:
+        raise Warning(
+            f"These polygons have no points to disaggregate to {polygons_without_points}."
+        )
+
+    # normalization_polygon is the sum of `proxy_column` over all points that belong to the polygon.
+    normalization = points[["belongs_to", proxy_column]].groupby("belongs_to").sum()
+    normalization = normalization.rename(columns={proxy_column: f"sum_{proxy_column}"})
+
+    # disaggregated value for each point is column_proxy * column_polygon / normalization_polygon
+    points = pd.merge(points, data[column], left_on="belongs_to", right_index=True)
+    points = points.join(normalization, on="belongs_to")
+    points["disaggregated"] = (
+        points[column] * points[proxy_column] / points[f"sum_{proxy_column}"]
+    )
+
+    if to_data_crs:
+        print(f"Reprojecting results to `data`'s CRS {_data.crs}.")
+        points = points.to_crs(_data.crs)
+
+    return points
