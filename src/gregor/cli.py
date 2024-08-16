@@ -23,13 +23,13 @@ def agg(raster, polygons, destination, stats):
     aggregated.to_file(destination)
 
 
-@click.command(help="Disaggregate polygon data to raster data using proxy.")
+@click.command(help="Disaggregate polygon data using raster proxy.")
 @click.argument("data", type=click.STRING)
 @click.argument("column", type=click.STRING)
 @click.argument("proxy", type=click.STRING)
 @click.argument("destination", type=click.STRING)
 @click.option("--to-data-crs", default=False, type=click.BOOL)
-def disagg(data, column, proxy, destination, to_data_crs):
+def disagg_poly_raster(data, column, proxy, destination, to_data_crs):
     if Path(destination).exists():
         raise ValueError("Destination file already exists.")
 
@@ -46,10 +46,31 @@ def disagg(data, column, proxy, destination, to_data_crs):
     disaggregated.rio.to_raster(destination)
 
 
+@click.command(help="Disaggregate polygon data using point proxy.")
+@click.argument("data", type=click.STRING)
+@click.argument("column", type=click.STRING)
+@click.argument("proxy", type=click.STRING)
+@click.argument("proxy_column", type=click.STRING)
+@click.argument("destination", type=click.STRING)
+@click.option("--to-data-crs", default=False, type=click.BOOL)
+def disagg_poly_point(data, column, proxy, proxy_column, destination, to_data_crs):
+    if Path(destination).exists():
+        raise ValueError("Destination file already exists.")
+
+    _data = gpd.read_file(data)
+    _proxy = gpd.read_file(proxy)
+
+    disaggregated = gregor.disaggregate.disaggregate_polygon_to_point(
+        _data, column, _proxy, proxy_column, to_data_crs
+    )
+    disaggregated.to_file(destination)
+
+
 @click.group()
 def cli():
     pass
 
 
 cli.add_command(agg)
-cli.add_command(disagg)
+cli.add_command(disagg_poly_raster)
+cli.add_command(disagg_poly_point)
