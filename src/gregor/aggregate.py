@@ -116,7 +116,9 @@ def aggregate_point_to_polygon(
     else:
         raise ValueError("`polygons` should be either a GeoSeries or a GeoDataFrame.")
 
-    joined_data = gpd.sjoin(points, _polygons, how="inner", op="within").drop(
+    _polygons = _polygons[["geometry"]]
+
+    joined_data = gpd.sjoin(points, _polygons, how="inner", predicate="within").drop(
         columns="geometry"
     )
 

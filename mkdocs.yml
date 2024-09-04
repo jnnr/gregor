@@ -3,7 +3,8 @@ copyright: Copyright &copy; since 2024 (MIT licensed)
 nav:
   - Getting started: index.md
   - Examples: 
-    - examples/disaggregate.py
+    - examples/disaggregate-to-raster.py
+    - examples/disaggregate-to-point.py
     - Running via CLI: examples/cli.md
   - API documentation: api.md
   - Changelog: Changelog.md
