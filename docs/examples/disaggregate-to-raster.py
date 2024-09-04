@@ -22,15 +22,15 @@ from pathlib import Path
 # Load all the input data
 PATH_DATA = Path(".") / "docs" / "examples"
 demand = pd.read_csv(PATH_DATA / "data/demand.csv", index_col=0)
-boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson")
-boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson")
+boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson").set_index("NUTS_ID")
+boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson").set_index("NUTS_ID")
 population = rxr.open_rasterio(PATH_DATA / "data/population_small.tif").squeeze()
 
 # %% [markdown]
 # Here, we merge the demand data with the boundaries on country level, to connect the energy demand with the geometries.
 
 # %%
-demand_geo = boundaries_country.merge(demand, on="NUTS_ID").set_index("NUTS_ID")
+demand_geo = boundaries_country.join(demand)
 demand_geo
 
 # %% [markdown]
@@ -59,7 +59,7 @@ demand_raster = gregor.disaggregate.disaggregate_polygon_to_raster(demand_geo, c
 # %% [markdown]
 # Aggregate the raster data back to countries for checking. The result should be equal (up to numerics) to the original data.
 # %%
-demand_aggregated = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_country.set_index("NUTS_ID"))
+demand_aggregated = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_country)
 
 # %%
 # Compare with original demand

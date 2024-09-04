@@ -21,15 +21,15 @@ from pathlib import Path
 # Load all the input data
 PATH_DATA = Path(".") / "docs" / "examples"
 demand = pd.read_csv(PATH_DATA / "data/demand.csv", index_col=0)
-boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson")
-boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson")
+boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson").set_index("NUTS_ID")
+boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson").set_index("NUTS_ID")
 cities = gpd.read_file(PATH_DATA / "data/cities.geojson")
 
 # %% [markdown]
 # Here, we merge the demand data with the boundaries on country level, to connect the energy demand with the geometries.
 
 # %%
-demand_geo = boundaries_country.merge(demand, on="NUTS_ID").set_index("NUTS_ID")
+demand_geo = boundaries_country.join(demand)
 demand_geo
 
 # %% [markdown]
@@ -56,12 +56,12 @@ ax2.set_title("City population")
 # Now, we disaggregate the demand data using the population data as a proxy. The result is a raster dataset with the resolution of the proxy.
 
 # %%
-demand_point = gregor.disaggregate.disaggregate_polygon_to_point(demand_geo, "FC_OTH_HH_E", cities, "pop_max")[["name", "disaggregated", "geometry"]]
-
+demand_point = gregor.disaggregate.disaggregate_polygon_to_point(demand_geo, "FC_OTH_HH_E", cities, "pop_max")
+demand_point.head(3)
 # %% [markdown]
-# Aggregate the raster data back to countries for checking. The result should be equal (up to numerics) to the original data.
+# Aggregate the point data back to countries for checking. The result should be equal (up to numerics) to the original data.
 # %%
-demand_aggregated = gregor.aggregate.aggregate_point_to_polygon(demand_point, boundaries_country.set_index("NUTS_ID").geometry)
+demand_aggregated = gregor.aggregate.aggregate_point_to_polygon(demand_point, boundaries_country.geometry)
 
 # %%
 # Compare with original demand
@@ -71,7 +71,6 @@ comparison["aggregated"] = demand_aggregated["disaggregated"]
 comparison["relative diff"] = abs((comparison["original"] - comparison["aggregated"])/ comparison["original"])
 assert (comparison["relative diff"] < 1e-6).all()
 comparison
-
 
 # %% [markdown]
 # Finally, we aggregate the point data to NUTS3 level, which is the resolution we are interested in.
