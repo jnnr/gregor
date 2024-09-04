@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Disaggregating spatial data
+# # Polygon to raster (and back)
 # This example demonstrates how to aggregate spatial data using `gregor`.
 # Imagine that you have some data that is described on national level, which you want to disaggregate to a finer resolution.
 # This could be household energy demand per country, which is provided by EUROSTAT (https://ec.europa.eu/eurostat/databrowser/view/nrg_d_hhq/default/table?lang=en).
