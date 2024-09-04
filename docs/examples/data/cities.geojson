@@ -1,0 +1,33 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "name": "Assen", "pop_max": 62237 }, "geometry": { "type": "Point", "coordinates": [ 6.5500026, 53.0000011 ] } },
+{ "type": "Feature", "properties": { "name": "Arnhem", "pop_max": 141674 }, "geometry": { "type": "Point", "coordinates": [ 5.9229996, 51.987996 ] } },
+{ "type": "Feature", "properties": { "name": "Maastricht", "pop_max": 122378 }, "geometry": { "type": "Point", "coordinates": [ 5.6770025, 50.8529971 ] } },
+{ "type": "Feature", "properties": { "name": "Zwolle", "pop_max": 111805 }, "geometry": { "type": "Point", "coordinates": [ 6.0969965, 52.5240001 ] } },
+{ "type": "Feature", "properties": { "name": "Middelburg", "pop_max": 46485 }, "geometry": { "type": "Point", "coordinates": [ 3.6099995, 51.5019962 ] } },
+{ "type": "Feature", "properties": { "name": "'s-Hertogenbosch", "pop_max": 134520 }, "geometry": { "type": "Point", "coordinates": [ 5.3166605, 51.6833371 ] } },
+{ "type": "Feature", "properties": { "name": "Diekirch", "pop_max": 6242 }, "geometry": { "type": "Point", "coordinates": [ 6.1667016, 49.8833011 ] } },
+{ "type": "Feature", "properties": { "name": "Grevenmacher", "pop_max": 3958 }, "geometry": { "type": "Point", "coordinates": [ 6.425599376387133, 49.67975296258291 ] } },
+{ "type": "Feature", "properties": { "name": "Mons", "pop_max": 91277 }, "geometry": { "type": "Point", "coordinates": [ 3.9390036, 50.4459991 ] } },
+{ "type": "Feature", "properties": { "name": "Hasselt", "pop_max": 69222 }, "geometry": { "type": "Point", "coordinates": [ 5.338536386219118, 50.928838164664029 ] } },
+{ "type": "Feature", "properties": { "name": "Arlon", "pop_max": 26179 }, "geometry": { "type": "Point", "coordinates": [ 5.8167005, 49.6833031 ] } },
+{ "type": "Feature", "properties": { "name": "Eindhoven", "pop_max": 398053 }, "geometry": { "type": "Point", "coordinates": [ 5.5000154, 51.4299732 ] } },
+{ "type": "Feature", "properties": { "name": "Gent", "pop_max": 444336 }, "geometry": { "type": "Point", "coordinates": [ 3.7000219, 51.0299976 ] } },
+{ "type": "Feature", "properties": { "name": "Liège", "pop_max": 749110 }, "geometry": { "type": "Point", "coordinates": [ 5.5800105, 50.6299962 ] } },
+{ "type": "Feature", "properties": { "name": "Leeuwarden", "pop_max": 125778 }, "geometry": { "type": "Point", "coordinates": [ 5.7833573, 53.2503788 ] } },
+{ "type": "Feature", "properties": { "name": "Groningen", "pop_max": 216688 }, "geometry": { "type": "Point", "coordinates": [ 6.5800012, 53.2204065 ] } },
+{ "type": "Feature", "properties": { "name": "Utrecht", "pop_max": 640000 }, "geometry": { "type": "Point", "coordinates": [ 5.1200386, 52.1003457 ] } },
+{ "type": "Feature", "properties": { "name": "Haarlem", "pop_max": 349957 }, "geometry": { "type": "Point", "coordinates": [ 4.629991, 52.3804319 ] } },
+{ "type": "Feature", "properties": { "name": "Brugge", "pop_max": 146469 }, "geometry": { "type": "Point", "coordinates": [ 3.2300248, 51.2203736 ] } },
+{ "type": "Feature", "properties": { "name": "Namur", "pop_max": 106284 }, "geometry": { "type": "Point", "coordinates": [ 4.870028, 50.4703935 ] } },
+{ "type": "Feature", "properties": { "name": "Charleroi", "pop_max": 345367 }, "geometry": { "type": "Point", "coordinates": [ 4.450002, 50.4203965 ] } },
+{ "type": "Feature", "properties": { "name": "Rotterdam", "pop_max": 1005000 }, "geometry": { "type": "Point", "coordinates": [ 4.4780285, 51.921915 ] } },
+{ "type": "Feature", "properties": { "name": "Luxembourg", "pop_max": 107260 }, "geometry": { "type": "Point", "coordinates": [ 6.1300028, 49.6116604 ] } },
+{ "type": "Feature", "properties": { "name": "Antwerpen", "pop_max": 920000 }, "geometry": { "type": "Point", "coordinates": [ 4.4130712, 51.2223194 ] } },
+{ "type": "Feature", "properties": { "name": "The Hague", "pop_max": 1406000 }, "geometry": { "type": "Point", "coordinates": [ 4.2699613, 52.0800368 ] } },
+{ "type": "Feature", "properties": { "name": "Brussels", "pop_max": 1743000 }, "geometry": { "type": "Point", "coordinates": [ 4.3313707, 50.8352629 ] } },
+{ "type": "Feature", "properties": { "name": "Amsterdam", "pop_max": 1031000 }, "geometry": { "type": "Point", "coordinates": [ 4.9146943, 52.3519145 ] } }
+]
+}

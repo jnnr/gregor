@@ -6,7 +6,7 @@
 # Ideally, you would have another source with higher resolution, but in lack of that, you want to use some assumptions to disaggregate your data to higher resolution.
 # Assuming that energy demand is proportional to population density, you want use population data () as a proxy.
 # `gregor` helps you doing that.
-#
+
 # First, import the necessary packages and data on household energy demand, boundaries on country and NUTS3 resolution and population data.
 
 # %%
@@ -15,7 +15,6 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import geopandas as gpd
-import rioxarray as rxr
 from pathlib import Path
 
 # %%
@@ -24,7 +23,7 @@ PATH_DATA = Path(".") / "docs" / "examples"
 demand = pd.read_csv(PATH_DATA / "data/demand.csv", index_col=0)
 boundaries_country = gpd.read_file(PATH_DATA / "data/boundaries_NUTS0.geojson")
 boundaries_NUTS3 = gpd.read_file(PATH_DATA / "data/boundaries_NUTS3.geojson")
-population = rxr.open_rasterio(PATH_DATA / "data/population_small.tif").squeeze()
+cities = gpd.read_file(PATH_DATA / "data/cities.geojson")
 
 # %% [markdown]
 # Here, we merge the demand data with the boundaries on country level, to connect the energy demand with the geometries.
@@ -38,60 +37,68 @@ demand_geo
 
 # %%
 # Plot
-xlim, ylim = ((2.2, 7.5), (49, 54))
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3), layout="constrained")
-demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 4), layout="constrained")
+
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True, legend_kwds={'location': 'bottom'})
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", aspect=None)
-population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap="Blues", vmax=500, aspect=None)
+cities.plot(ax=ax2, column="pop_max", cmap="Reds", aspect=None, legend=True, legend_kwds={'location': 'bottom'})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
+
+xlim, ylim = ((2.2, 7.5), (49, 54))
 for ax in (ax1, ax2):
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
-ax1.set_title("National resolution")
-ax2.set_title("Population")
+    ax.axis("off")
 
+ax1.set_title("Energy demand, national resolution")
+ax2.set_title("City population")
 # %% [markdown]
 # Now, we disaggregate the demand data using the population data as a proxy. The result is a raster dataset with the resolution of the proxy.
 
 # %%
-demand_raster = gregor.disaggregate.disaggregate_polygon_to_raster(demand_geo, column="FC_OTH_HH_E", proxy=population)
+demand_point = gregor.disaggregate.disaggregate_polygon_to_point(demand_geo, "FC_OTH_HH_E", cities, "pop_max")[["name", "disaggregated", "geometry"]]
 
 # %% [markdown]
 # Aggregate the raster data back to countries for checking. The result should be equal (up to numerics) to the original data.
 # %%
-gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_country)
+demand_aggregated = gregor.aggregate.aggregate_point_to_polygon(demand_point, boundaries_country.set_index("NUTS_ID").geometry)
 
 # %%
-# The original demand for comparison
-demand
+# Compare with original demand
+comparison = pd.DataFrame(index=demand_aggregated.index)
+comparison["original"] = demand_geo["FC_OTH_HH_E"]
+comparison["aggregated"] = demand_aggregated["disaggregated"]
+comparison["relative diff"] = abs((comparison["original"] - comparison["aggregated"])/ comparison["original"])
+assert (comparison["relative diff"] < 1e-6).all()
+comparison
+
 
 # %% [markdown]
-# Finally, we aggregate the raster data to NUTS3 level, which is the resolution we are interested in.
+# Finally, we aggregate the point data to NUTS3 level, which is the resolution we are interested in.
 
 # %%
-demand_NUTS3 = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_NUTS3)
+demand_NUTS3 = gregor.aggregate.aggregate_point_to_polygon(demand_point, boundaries_NUTS3.geometry)
 
 # %% [markdown]
 # This is a plot of the original data and the disaggregated data in raster format, as well as the data aggregate to NUTS3 resolution.
 # %%
-xlim, ylim = ((2.5, 7.5), (49, 54))
+fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(9, 4), layout="constrained")
 
+xlim, ylim = ((2.5, 7.5), (49, 54))
 reds = LinearSegmentedColormap.from_list('', ['white', 'red'])
 greens = LinearSegmentedColormap.from_list('', ['white', 'Green'])
-vmax = demand_NUTS3["sum"].max()
-
-fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(9, 4), layout="constrained")
+vmax = demand_NUTS3["disaggregated"].max()
 
 demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", linewidth=1, aspect=None)
 
-population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap=reds, vmax=500, aspect=None, add_colorbar=True, cbar_kwargs={'location': 'bottom'})
+cities.plot(ax=ax2, column="pop_max", cmap=reds, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", linewidth=1, aspect=None)
 
-demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': None})
+demand_point.plot(ax=ax3, column="disaggregated", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
 boundaries_country.geometry.boundary.plot(ax=ax3, color="black", linewidth=1, aspect=None)
 
-demand_NUTS3.plot(ax=ax4, column="sum", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+demand_NUTS3.plot(ax=ax4, column="disaggregated", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
 demand_NUTS3.geometry.boundary.plot(ax=ax4, color="black", linewidth=1, aspect=None)
 
 for ax in (ax1, ax2, ax3, ax4):
@@ -99,7 +106,7 @@ for ax in (ax1, ax2, ax3, ax4):
     ax.set_ylim(*ylim)
     ax.set_axis_off()
 
-ax1.set_title("National\nresolution")
-ax2.set_title("Proxy\n(population)")
-ax3.set_title("Disaggregated\nto raster")
-ax4.set_title("Aggregated\nto NUTS3")
+ax1.set_title("Demand,\nnationalresolution")
+ax2.set_title("Proxy\n(city population)")
+ax3.set_title("Demand,\ndisaggregated to points")
+ax4.set_title("Demand,\naggregated to NUTS3")
