@@ -118,7 +118,7 @@ def aggregate_point_to_polygon(
 
     _polygons = _polygons[["geometry"]]
 
-    joined_data = gpd.sjoin(points, _polygons, how="inner", op="within").drop(
+    joined_data = gpd.sjoin(points, _polygons, how="inner", predicate="within").drop(
         columns="geometry"
     )
 
