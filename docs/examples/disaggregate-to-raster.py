@@ -38,17 +38,24 @@ demand_geo
 
 # %%
 # Plot
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 4), layout="constrained")
+
 xlim, ylim = ((2.2, 7.5), (49, 54))
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3), layout="constrained")
-demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True)
+reds = LinearSegmentedColormap.from_list('reds', ['white', 'red'])
+greens = LinearSegmentedColormap.from_list('greens', ['white', 'Green'])
+
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", aspect=None)
-population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap="Blues", vmax=500, aspect=None)
+population.rio.reproject("EPSG:4236").plot.imshow(ax=ax2, cmap=reds, vmax=500, aspect=None, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': "# inhabitants"})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
 for ax in (ax1, ax2):
     ax.set_xlim(*xlim)
+    ax.set_axis_off()
     ax.set_ylim(*ylim)
+
 ax1.set_title("National resolution")
 ax2.set_title("Population")
+plt.show()
 
 # %% [markdown]
 # Now, we disaggregate the demand data using the population data as a proxy. The result is a raster dataset with the resolution of the proxy.
@@ -79,24 +86,22 @@ demand_NUTS3 = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH
 # %% [markdown]
 # This is a plot of the original data and the disaggregated data in raster format, as well as the data aggregate to NUTS3 resolution.
 # %%
-xlim, ylim = ((2.5, 7.5), (49, 54))
-
-reds = LinearSegmentedColormap.from_list('', ['white', 'red'])
-greens = LinearSegmentedColormap.from_list('', ['white', 'Green'])
-vmax = demand_NUTS3["sum"].max()
 
 fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(9, 4), layout="constrained")
 
-demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+xlim, ylim = ((2.5, 7.5), (49, 54))
+vmax = demand_NUTS3["sum"].max()
+
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", linewidth=1, aspect=None)
 
-population.rio.reproject("EPSG:4236").plot(ax=ax2, cmap=reds, vmax=500, aspect=None, add_colorbar=True, cbar_kwargs={'location': 'bottom'})
+population.rio.reproject("EPSG:4236").plot.imshow(ax=ax2, cmap=reds, vmax=500, aspect=None, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': "# inhabitants"})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", linewidth=1, aspect=None)
 
-demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': None})
+demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot.imshow(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': "GWh/year"})
 boundaries_country.geometry.boundary.plot(ax=ax3, color="black", linewidth=1, aspect=None)
 
-demand_NUTS3.plot(ax=ax4, column="sum", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+demand_NUTS3.plot(ax=ax4, column="sum", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
 demand_NUTS3.geometry.boundary.plot(ax=ax4, color="black", linewidth=1, aspect=None)
 
 for ax in (ax1, ax2, ax3, ax4):
@@ -108,3 +113,5 @@ ax1.set_title("National\nresolution")
 ax2.set_title("Proxy\n(population)")
 ax3.set_title("Disaggregated\nto raster")
 ax4.set_title("Aggregated\nto NUTS3")
+
+plt.show()

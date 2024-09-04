@@ -2,7 +2,7 @@
 # # Polygon to point (and back)
 # This example demonstrates how to aggregate spatial data using `gregor`.
 # Imagine that you have some data that is described on national level, which you want to disaggregate to a finer resolution.
-# This could be household energy demand per country, which is provided by EUROSTAT (https://ec.europa.eu/eurostat/databrowser/view/nrg_d_hhq/default/table?lang=en).
+# This could be household energy demand per country in 2022, which is provided by EUROSTAT (https://ec.europa.eu/eurostat/databrowser/view/nrg_d_hhq/default/table?lang=en).
 # Ideally, you would have another source with higher resolution, but in lack of that, you want to use some assumptions to disaggregate your data to higher resolution.
 # Assuming that energy demand is proportional to population density, you want use population data () as a proxy.
 # `gregor` helps you doing that.
@@ -39,9 +39,12 @@ demand_geo
 # Plot
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5, 4), layout="constrained")
 
-demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap="Greens", aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+reds = LinearSegmentedColormap.from_list('reds', ['white', 'red'])
+greens = LinearSegmentedColormap.from_list('greens', ['white', 'Green'])
+
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", aspect=None)
-cities.plot(ax=ax2, column="pop_max", cmap="Reds", aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+cities.plot(ax=ax2, column="pop_max", cmap=reds, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "# inhabitants"})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", aspect=None)
 
 xlim, ylim = ((2.2, 7.5), (49, 54))
@@ -50,8 +53,10 @@ for ax in (ax1, ax2):
     ax.set_ylim(*ylim)
     ax.axis("off")
 
-ax1.set_title("Energy demand, national resolution")
+ax1.set_title("Demand, national resolution")
 ax2.set_title("City population")
+plt.show()
+
 # %% [markdown]
 # Now, we disaggregate the demand data using the population data as a proxy. The result is a raster dataset with the resolution of the proxy.
 
@@ -84,20 +89,18 @@ demand_NUTS3 = gregor.aggregate.aggregate_point_to_polygon(demand_point, boundar
 fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(9, 4), layout="constrained")
 
 xlim, ylim = ((2.5, 7.5), (49, 54))
-reds = LinearSegmentedColormap.from_list('', ['white', 'red'])
-greens = LinearSegmentedColormap.from_list('', ['white', 'Green'])
 vmax = demand_NUTS3["disaggregated"].max()
 
-demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+demand_geo.plot(ax=ax1, column="FC_OTH_HH_E", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
 boundaries_country.geometry.boundary.plot(ax=ax1, color="black", linewidth=1, aspect=None)
 
-cities.plot(ax=ax2, column="pop_max", cmap=reds, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+cities.plot(ax=ax2, column="pop_max", cmap=reds, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "# inhabitants"})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", linewidth=1, aspect=None)
 
-demand_point.plot(ax=ax3, column="disaggregated", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+demand_point.plot(ax=ax3, column="disaggregated", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
 boundaries_country.geometry.boundary.plot(ax=ax3, color="black", linewidth=1, aspect=None)
 
-demand_NUTS3.plot(ax=ax4, column="disaggregated", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom'})
+demand_NUTS3.plot(ax=ax4, column="disaggregated", cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
 demand_NUTS3.geometry.boundary.plot(ax=ax4, color="black", linewidth=1, aspect=None)
 
 for ax in (ax1, ax2, ax3, ax4):
@@ -105,7 +108,8 @@ for ax in (ax1, ax2, ax3, ax4):
     ax.set_ylim(*ylim)
     ax.set_axis_off()
 
-ax1.set_title("Demand,\nnationalresolution")
+ax1.set_title("Demand,\nnational resolution")
 ax2.set_title("Proxy\n(city population)")
 ax3.set_title("Demand,\ndisaggregated to points")
 ax4.set_title("Demand,\naggregated to NUTS3")
+plt.show()
