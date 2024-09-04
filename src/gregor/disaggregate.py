@@ -209,6 +209,9 @@ def disaggregate_polygon_to_point(
         points[column] * points[proxy_column] / points[f"sum_{proxy_column}"]
     )
 
+    # Keep only the necessary columns
+    points = points[["geometry", "disaggregated"]]
+
     if to_data_crs:
         print(f"Reprojecting results to `data`'s CRS {_data.crs}.")
         points = points.to_crs(_data.crs)
