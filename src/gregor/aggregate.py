@@ -122,7 +122,20 @@ def aggregate_point_to_polygon(
         columns="geometry"
     )
 
-    aggregated_data = joined_data.groupby("index_right").agg(aggfunc)
+    gpd_version = gpd.__version__
+    if gpd.__version__ <= "0.14.4":
+        groupby = "index_right"
+        import warnings
+
+        warnings.warn(
+            f"You are using an old geopandas verion {gpd_version}. "
+            "Future versions of gregor will require geopandas >= 1.0.0.",
+            FutureWarning,
+        )
+    else:
+        groupby = _polygons.index.name
+
+    aggregated_data = joined_data.groupby(groupby).agg(aggfunc)
 
     result = _polygons.join(aggregated_data)
 
