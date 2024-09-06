@@ -2,6 +2,8 @@
 
 Gregor is a tool that makes your life easier when aggregating and dis-aggregating spatial data. It has been developed in the context of preparing data for energy system modeling, but can be applied in any situation involving spatial data.
 
+<img src="docs/img/polygons-to-raster-and-back.png?raw=true" width=850>
+
 ## Installation
 
 Install the latest release from pypi using pip.
