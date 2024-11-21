@@ -1,6 +1,9 @@
 Changelog
 =========
 
+v0.0.3.dev
+------------------------------------------------------------
+
 v0.0.2 (2024-11-21)
 ------------------------------------------------------------
 - Add a function that allows to disaggregate polygons to points [#5](https://github.com/jnnr/gregor/pull/5).

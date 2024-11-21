@@ -5,7 +5,7 @@ authors = [
 ]
 description = "A library for spatial aggregation and disaggregation"
 readme = "README.md"
-version = "0.0.2"
+version = "0.0.3.dev"
 dynamic = ["dependencies"]
 
 # complete classifier list:

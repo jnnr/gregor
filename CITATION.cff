@@ -9,7 +9,7 @@ authors:
 title: "Gregor"
 type: software
 license: MIT
-version: 0.0.2
+version: 0.0.3.dev
 doi:
 date-released: 
 url: "https://github.com/jnnr/gregor"
