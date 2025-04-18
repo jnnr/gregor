@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from rasterio.features import geometry_mask
+from gregor.aggregate import aggregate_raster_to_polygon
+import rasterio as rio
 
 
 def disaggregate_polygon_to_raster(
@@ -45,6 +47,9 @@ def disaggregate_polygon_to_raster(
 
     # Each raster point belongs to one spatial_unit
     belongs_to = get_belongs_to_matrix(proxy, _data.geometry)
+    if belongs_to.isnull().all().values:
+        raise ValueError("None of the pixels in `proxy` belong to any of the geometries in `data`.")
+
     _data = _data[[column]].to_xarray()
     normalization = proxy.groupby(belongs_to).sum().rename(group=index_name)
 
@@ -217,3 +222,99 @@ def disaggregate_polygon_to_point(
         points = points.to_crs(_data.crs)
 
     return points
+
+
+def disaggregate_polygon_to_raster_prioritize(
+        data_polygon: gpd.GeoDataFrame|gpd.GeoSeries,
+        column: str,
+        priority: xr.Dataset,
+        limit: xr.Dataset,
+        reproject_match: bool = True,
+        to_data_crs: bool = False
+    ):
+    # Define crs as crs of `limit`.
+    crs = limit.rio.crs
+    name_result = "allocation"
+
+    # Some checks
+    if not priority.rio.crs == crs:
+        raise ValueError(f"CRS mismatch! `priority` has CRS {priority.rio.crs} and `limit` {crs}.")
+    
+    if not len(priority.dims) == 2 and len(limit.dims) == 2:
+        raise ValueError("Both `priority` and `limit` need to be 2-dimensional.")
+    
+    # check that priority and limit fully align
+    
+    # TODO Check that aggregated limit is enough to disaggregate data
+    limit_agg = aggregate_raster_to_polygon(limit, data_polygon.geometry)
+    check = limit_agg[["sum"]].join(data_polygon[column], how="left")
+    check["sufficient"] = check["sum"] > check[column]
+
+    insufficient = check.loc[~check["sufficient"]]
+    if not insufficient.empty:
+        raise ValueError(f"Limit is not sufficient for these geometries: {insufficient}")
+
+    # Transform and match data, if necessary.
+    _data_polygon = data_polygon.copy()
+    # compare crs. If not the same, project data to proxy's crs
+    if not _data_polygon.crs == crs:
+        print(
+            f"CRS of `limit` ({crs}) does not match CRS of `data` ({_data_polygon.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
+        )
+        _data_polygon = _data_polygon.to_crs(limit.crs)
+
+    if reproject_match:
+        priority = priority.rio.reproject_match(
+            limit,
+            resampling=rio.enums.Resampling.sum,
+            nodata=0
+        ) 
+    elif not priority.shape == limit.shape:
+        raise ValueError(f"Shape mismatch! `priority` has shape {priority.shape} and `limit` {limit.shape}.")
+    
+    # Initialise an empty raster in the same shape as `limit`.
+    result = xr.DataArray(coords=limit.coords, dims=limit.dims, name=name_result)
+    result = result.rio.write_crs(crs)
+
+    belongs_to = get_belongs_to_matrix(limit, _data_polygon["geometry"])
+
+    # Loop over regions
+    for id_region, data in data_polygon.iterrows():
+        priority_in_region = priority.where(belongs_to == id_region)
+        # Create priority_order (an ordered list of coordinates)
+        priority_order = priority_in_region.stack(z=("x", "y"))
+        priority_order = priority_order.sortby(lambda x: x, ascending=False)
+        priority_order = priority_order.dropna("z")
+
+        # Order limit by priority_order
+        limit_in_region = limit.where(belongs_to == id_region)
+        limit_in_region_ordered = limit_in_region.stack(z=("x", "y")).reindex_like(priority_order)
+
+        # Create cumsum of limit
+        cumsum = limit_in_region_ordered.cumsum()
+
+        # Fill up pixels apart from the last one, where cumsum exceeds data[column]
+        fill_up = limit_in_region_ordered.where(data[column] > cumsum).dropna("z")
+        if not fill_up.isnull().all():
+            fill_up_unstack = fill_up.unstack()
+            fill_up_unstack.name = name_result
+
+            result_to_be_overwritten = result.where(fill_up_unstack)
+            assert result_to_be_overwritten.isnull().all(), "Values to be overwritten are not all NaN!"
+
+            result = xr.merge([result, fill_up_unstack], compat="no_conflicts")
+
+        # Find the coordinate where cumsum exceeds data[column]
+        argwhere_last_pixel = np.argwhere(data[column] <= cumsum.values)[0][0]
+        already_filled = limit_in_region_ordered[:argwhere_last_pixel].sum()
+        rest = data[column] - already_filled
+
+        # Write rest to result at that coordinate
+        value_last_pixel = limit_in_region_ordered[[argwhere_last_pixel]]
+        value_last_pixel.values = [rest]
+        value_last_pixel.name = name_result
+        value_last_pixel = value_last_pixel.unstack()
+
+        result = xr.merge([result, value_last_pixel], compat="no_conflicts")
+
+    return result.to_dataarray()
