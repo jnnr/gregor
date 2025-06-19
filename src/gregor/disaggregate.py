@@ -273,8 +273,9 @@ def disaggregate_polygon_to_raster_prioritize(
         raise ValueError(f"Shape mismatch! `priority` has shape {priority.shape} and `limit` {limit.shape}.")
     
     # Initialise an empty raster in the same shape as `limit`.
-    result = xr.DataArray(coords=limit.coords, dims=limit.dims, name=name_result)
+    result = xr.DataArray(coords=limit.coords, dims=limit.dims, attrs=limit.attrs, name=name_result)
     result = result.rio.write_crs(crs)
+    result = result.rio.write_transform(limit.rio.transform())
 
     belongs_to = get_belongs_to_matrix(limit, _data_polygon["geometry"])
 
