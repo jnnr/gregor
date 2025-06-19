@@ -1,1 +1,1 @@
-from . import aggregate, disaggregate, raster
+from . import aggregate, disaggregate, raster, timeseries
