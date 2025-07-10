@@ -132,8 +132,11 @@ def aggregate_point_to_polygon(
             "Future versions of gregor will require geopandas >= 1.0.0.",
             FutureWarning,
         )
-    else:
+
+    if _polygons.index.name is not None:
         groupby = _polygons.index.name
+    else:
+        groupby = "index_right"
 
     aggregated_data = joined_data.groupby(groupby).agg(aggfunc)
 
