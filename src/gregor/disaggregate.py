@@ -60,8 +60,13 @@ def disaggregate_polygon_to_raster(
     # one DataArray, float32, chunked
     proxy_da = proxy_da.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
-    # raster of polygon IDs (int32, same chunks)
-    belongs_to = get_belongs_to_matrix(proxy_da, gdf.geometry)
+    # raster of polygon IDs ─ always burn row numbers (0…n‑1)
+    if not np.issubdtype(gdf.index.dtype, np.integer):
+        geom_id_source = gdf.reset_index(drop=True).geometry  # integer IDs
+    else:
+        geom_id_source = gdf.geometry
+
+    belongs_to = get_belongs_to_matrix(proxy_da, geom_id_source)
     belongs_to = belongs_to.where(~belongs_to.isnull(), other=-1)
     belongs_to = belongs_to.astype("int32").chunk(proxy_da.chunks)
 
