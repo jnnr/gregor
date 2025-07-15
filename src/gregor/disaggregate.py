@@ -61,11 +61,9 @@ def disaggregate_polygon_to_raster(
     proxy_da = proxy_da.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
     # raster of polygon IDs (int32, same chunks)
-    belongs_to = (
-        get_belongs_to_matrix(proxy_da, gdf.geometry)
-        .astype("int32")
-        .chunk(proxy_da.chunks)
-    )
+    belongs_to = get_belongs_to_matrix(proxy_da, gdf.geometry)
+    belongs_to = belongs_to.where(~belongs_to.isnull(), other=-1)
+    belongs_to = belongs_to.astype("int32").chunk(proxy_da.chunks)
 
     # ───────────────────── zonal sums per polygon ───────────────────────
     max_id = int(belongs_to.max().compute())  # get the 'true' maximum
