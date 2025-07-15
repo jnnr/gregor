@@ -1,3 +1,4 @@
+import dask.array as da
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -8,9 +9,10 @@ from rasterio.features import geometry_mask
 def disaggregate_polygon_to_raster(
     data: gpd.GeoDataFrame,
     column: str,
-    proxy: xr.Dataset,
+    proxy: xr.DataArray,
+    chunk_size: int = 1024,
     to_data_crs: bool = False,
-) -> xr.Dataset:
+) -> xr.DataArray:
     r"""
     Disaggregate polygon data to raster data using proxy.
     Normalization of the proxy happens internally.
@@ -20,51 +22,109 @@ def disaggregate_polygon_to_raster(
     data : gpd.GeoDataFrame
         Data to be disaggregated.
     column : str
-        Column name of the data to be disaggregated.
-    proxy : xr.Dataset
-        Proxy data for disaggregation.
-    to_data_crs : bool, optional
-        Whether to reproject proxy to `data`'s CRS or keep it in `raster`'s CRS. Default is False.
+        Name of the attribute in `data` to disaggregate.
+    proxy : xr.DataArray
+        Raster whose intensities act as weights.
+    chunk_size : int, default 1024
+        Square chunk edge length for the proxy and ID rasters.
+    to_data_crs : bool, default False
+        If True, reprojects the output raster back to `data`'s CRS.
 
     Returns
     -------
-    xr.Dataset
+    xr.DataArray
         Disaggregated raster data.
     """
-    _data = data.copy()
-    index_name = _data.index.name
-    if index_name is None:
-        index_name = "id"
-        _data.index.name = index_name
+    if isinstance(proxy, xr.DataArray):
+        proxy_da = proxy
+    else:  # proxy is a Dataset
+        if len(proxy.data_vars) == 1:
+            var_name = next(iter(proxy.data_vars))
+            proxy_da = proxy[var_name]
+        else:
+            raise ValueError(
+                f"Cannot compute multi-variable Dataset of length {len(proxy.data_vars)}. "
+                "Pass a DataArray instead."
+            )
 
-    if not proxy.rio.crs == data.crs:
+    gdf = data.copy()
+    index_name = gdf.index.name or "id"
+    gdf.index.name = index_name
+
+    if proxy.rio.crs != gdf.crs:
         print(
             f"CRS of `proxy` ({proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
         )
-        _data = _data.to_crs(proxy.rio.crs)
+        gdf = gdf.to_crs(proxy.rio.crs)
 
-    # Each raster point belongs to one spatial_unit
-    belongs_to = get_belongs_to_matrix(proxy, _data.geometry)
-    _data = _data[[column]].to_xarray()
-    normalization = proxy.groupby(belongs_to).sum().rename(group=index_name)
+    # one DataArray, float32, chunked
+    proxy_da = proxy_da.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
-    # # Remove regions that do not belong to any geometry
-    _data = _data.sel({index_name: normalization.coords[index_name]})
+    # raster of polygon IDs (int32, same chunks)
+    belongs_to = (
+        get_belongs_to_matrix(proxy_da, gdf.geometry)
+        .astype("int32")
+        .chunk(proxy_da.chunks)
+    )
 
-    # Disaggregate data to raster using proxy
-    # raster_{x,y} = 1/normalization_{id} * _data_{id} * belongs_to_{id,x,y} * proxy_{x,y}
-    raster = xr.DataArray(data=0, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x})
-    for id in normalization.coords[index_name]:
-        raster_id = (
-            1
-            / normalization.sel({index_name: id})
-            * _data.sel({index_name: id})
-            * (belongs_to == id)
-            * proxy
-        )
-        raster = raster + raster_id
+    # ───────────────────── zonal sums per polygon ───────────────────────
+    max_id = int(belongs_to.max().compute())  # get the 'true' maximum
+    n_ids = max_id + 1  # valid IDs: 0 … max_id
 
-    if to_data_crs:
+    def _zonal_sum(block_proxy, block_ids, *, n_ids):
+        """zonal sum within chunk block"""
+        mask = block_ids >= 0
+        return np.bincount(
+            block_ids[mask].ravel(),  # polygon id per pixel
+            weights=block_proxy[mask].ravel(),  # weigth per pixel
+            minlength=n_ids,  # length of output vector
+        ).astype("float32")
+
+    # 'lazy' scattered processing
+    zonal = xr.apply_ufunc(
+        _zonal_sum,
+        proxy_da,
+        belongs_to,
+        kwargs={"n_ids": n_ids},
+        input_core_dims=[["y", "x"], ["y", "x"]],
+        output_core_dims=[[index_name]],
+        output_sizes={index_name: n_ids},
+        vectorize=True,
+        dask="parallelized",
+        output_dtypes=["float32"],
+    )
+
+    normalization = zonal.sum(dim=[d for d in zonal.dims if d != index_name]).compute()
+
+    # values & normalisations as dense vectors
+    val_full = np.zeros(n_ids + 1, dtype="float32")  # +1 sentinel (-1)
+    norm_full = np.zeros(n_ids + 1, dtype="float32")
+
+    val_full[gdf.index.values.astype(int)] = gdf[column].astype("float32").values
+    val_full[: len(gdf)] = gdf[column].astype("float32").values
+    norm_full[:n_ids] = normalization.values
+
+    sentinel = n_ids  # index of zero‑filled slot
+
+    # raster assembly
+    ids = belongs_to.data  # (y,x)
+    ids_safe = da.where(ids >= 0, ids, sentinel).astype("int64")  # ensure valid
+
+    # Lookup via map_blocks — works with N‑D indexers
+    val_pix = da.map_blocks(lambda blk: val_full[blk], ids_safe, dtype="float32")
+    norm_pix = da.map_blocks(lambda blk: norm_full[blk], ids_safe, dtype="float32")
+
+    raster_data = da.where(ids >= 0, proxy_da.data * val_pix / norm_pix, 0.0)
+
+    raster = xr.DataArray(
+        raster_data,
+        dims=proxy_da.dims,
+        coords=proxy_da.coords,
+        name=column,
+        attrs=proxy_da.attrs,
+    )
+
+    if to_data_crs and proxy_da.rio.crs != data.crs:
         print(f"Reprojecting results to `data`'s CRS {data.crs}.")
         raster = raster.rio.reproject(data.crs)
 
@@ -186,9 +246,9 @@ def disaggregate_polygon_to_point(
     )
 
     # Make sure that it belongs to only one polygon
-    assert (
-        points.belongs_to.apply(len).max() == 1
-    ), "Every Point should belongs to exaxtly one polygon."
+    assert points.belongs_to.apply(len).max() == 1, (
+        "Every Point should belong to exactly one polygon."
+    )
     points.belongs_to = points.belongs_to.apply(lambda x: x[0])
 
     # Warn if there are polygons without points.
