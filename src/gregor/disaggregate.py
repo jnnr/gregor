@@ -103,7 +103,6 @@ def disaggregate_polygon_to_raster(
     val_full = np.zeros(n_ids + 1, dtype="float32")  # +1 sentinel (-1)
     norm_full = np.zeros(n_ids + 1, dtype="float32")
 
-    val_full[gdf.index.values.astype(int)] = gdf[column].astype("float32").values
     val_full[: len(gdf)] = gdf[column].astype("float32").values
     norm_full[:n_ids] = normalization.values
 
