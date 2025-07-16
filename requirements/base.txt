@@ -2,6 +2,7 @@ pandas >= 1.2
 numpy
 matplotlib
 geopandas
+dask
 xarray
 rasterio
 rioxarray
