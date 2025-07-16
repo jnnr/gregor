@@ -108,9 +108,14 @@ def disaggregate_polygon_to_raster(
     normalisation = zonal.sum(dim=set(zonal.dims) - {index_name}).compute()
     if debug:
         print("normalization (first 1000):", normalisation.values[:1000])
-    val_full = np.zeros(n_ids + 1, dtype="float32")  # +1 for sentinel
+
+    # +1 extra slot (sentinel) that will later propagate NaN outside given geometries
+    val_full = np.zeros(n_ids + 1, dtype="float32")
     norm_full = np.zeros(n_ids + 1, dtype="float32")
     sentinel = n_ids  # index of zero‑filled slot
+
+    val_full[sentinel] = np.nan
+    norm_full[sentinel] = 1.0  # avoid 0/0 inside map_blocks
 
     val_full[: len(gdf)] = gdf[column].astype("float32").values
     norm_full[:n_ids] = normalisation.values
@@ -128,7 +133,7 @@ def disaggregate_polygon_to_raster(
         print("val_pix block example :", val_pix.blocks[0, 0].compute()[0, :5])
         print("norm_pix block example:", norm_pix.blocks[0, 0].compute()[0, :5])
         print("proxy block example   :", proxy_da.data.blocks[0, 0].compute()[0, :5])
-    raster_data = da.where(ids >= 0, proxy_da.data * val_pix / norm_pix, 0.0)
+    raster_data = da.where(ids >= 0, proxy_da.data * val_pix / norm_pix, np.nan)
 
     raster = xr.DataArray(
         raster_data,
