@@ -3,7 +3,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import xarray as xr
-from rasterio.features import geometry_mask
+from rasterio.features import rasterize
 
 
 def disaggregate_polygon_to_raster(
@@ -12,6 +12,7 @@ def disaggregate_polygon_to_raster(
     proxy: xr.DataArray,
     chunk_size: int = 1024,
     to_data_crs: bool = False,
+    debug: bool = False,
 ) -> xr.DataArray:
     r"""
     Disaggregate polygon data to raster data using proxy.
@@ -29,6 +30,8 @@ def disaggregate_polygon_to_raster(
         Square chunk edge length for the proxy and ID rasters.
     to_data_crs : bool, default False
         If True, reprojects the output raster back to `data`'s CRS.
+    debug: bool, default False
+        If True, print some info on what the process is doing to console.
 
     Returns
     -------
@@ -57,33 +60,36 @@ def disaggregate_polygon_to_raster(
         )
         gdf = gdf.to_crs(proxy.rio.crs)
 
-    # one DataArray, float32, chunked
+    # always one DataArray in float32, chunked
     proxy_da = proxy_da.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
     # raster of polygon IDs ─ always burn row numbers (0…n‑1)
     if not np.issubdtype(gdf.index.dtype, np.integer):
+        print("Non-integer index detected, resetting to numeric for processing.")
         geom_id_source = gdf.reset_index(drop=True).geometry  # integer IDs
     else:
         geom_id_source = gdf.geometry
 
     belongs_to = get_belongs_to_matrix(proxy_da, geom_id_source)
+    if debug:
+        print("unique IDs in belongs_to:", np.unique(belongs_to.data)[:15])
+        print("min / max proxy value:", float(proxy_da.min()), float(proxy_da.max()))
+
     belongs_to = belongs_to.where(~belongs_to.isnull(), other=-1)
     belongs_to = belongs_to.astype("int32").chunk(proxy_da.chunks)
 
-    # ───────────────────── zonal sums per polygon ───────────────────────
+    # zonal sums per polygon
     max_id = int(belongs_to.max().compute())  # get the 'true' maximum
     n_ids = max_id + 1  # valid IDs: 0 … max_id
 
     def _zonal_sum(block_proxy, block_ids, *, n_ids):
-        """zonal sum within chunk block"""
-        mask = block_ids >= 0
+        ok = (block_ids >= 0) & np.isfinite(block_proxy)  # NEW – drop NaNs
         return np.bincount(
-            block_ids[mask].ravel(),  # polygon id per pixel
-            weights=block_proxy[mask].ravel(),  # weigth per pixel
-            minlength=n_ids,  # length of output vector
+            block_ids[ok].ravel(),
+            weights=block_proxy[ok].ravel(),
+            minlength=n_ids,
         ).astype("float32")
 
-    # 'lazy' scattered processing
     zonal = xr.apply_ufunc(
         _zonal_sum,
         proxy_da,
@@ -95,27 +101,33 @@ def disaggregate_polygon_to_raster(
         vectorize=True,
         dask="parallelized",
         output_dtypes=["float32"],
+        dask_gufunc_kwargs={"allow_rechunk": True},
     )
 
-    normalization = zonal.sum(dim=[d for d in zonal.dims if d != index_name]).compute()
-
-    # values & normalisations as dense vectors
-    val_full = np.zeros(n_ids + 1, dtype="float32")  # +1 sentinel (-1)
+    # values and normalisations as dense vectors
+    normalisation = zonal.sum(dim=set(zonal.dims) - {index_name}).compute()
+    if debug:
+        print("normalization (first 1000):", normalisation.values[:1000])
+    val_full = np.zeros(n_ids + 1, dtype="float32")  # +1 for sentinel
     norm_full = np.zeros(n_ids + 1, dtype="float32")
+    sentinel = n_ids  # index of zero‑filled slot
 
     val_full[: len(gdf)] = gdf[column].astype("float32").values
-    norm_full[:n_ids] = normalization.values
-
-    sentinel = n_ids  # index of zero‑filled slot
+    norm_full[:n_ids] = normalisation.values
 
     # raster assembly
     ids = belongs_to.data  # (y,x)
-    ids_safe = da.where(ids >= 0, ids, sentinel).astype("int64")  # ensure valid
+    ids_safe = da.where(ids >= 0, ids, sentinel).astype(
+        "int32"
+    )  # max > billion polygons
 
-    # Lookup via map_blocks — works with N‑D indexers
+    # lookup via map_blocks, works with N‑D indexers
     val_pix = da.map_blocks(lambda blk: val_full[blk], ids_safe, dtype="float32")
     norm_pix = da.map_blocks(lambda blk: norm_full[blk], ids_safe, dtype="float32")
-
+    if debug:
+        print("val_pix block example :", val_pix.blocks[0, 0].compute()[0, :5])
+        print("norm_pix block example:", norm_pix.blocks[0, 0].compute()[0, :5])
+        print("proxy block example   :", proxy_da.data.blocks[0, 0].compute()[0, :5])
     raster_data = da.where(ids >= 0, proxy_da.data * val_pix / norm_pix, 0.0)
 
     raster = xr.DataArray(
@@ -131,6 +143,35 @@ def disaggregate_polygon_to_raster(
         raster = raster.rio.reproject(data.crs)
 
     return raster
+
+
+def get_belongs_to_matrix(
+    raster_da: xr.DataArray, polygons: gpd.GeoSeries, sentinel: int = -1
+) -> xr.DataArray:
+    r"""
+    Get a matrix which indicates which polygon each raster point belongs to.
+
+    Parameters
+    ----------
+    raster_da : xr.DataArray
+        Raster array to get the matrix for.
+    polygons : gpd.GeoSeries
+        Polygons to compute the matrix for.
+
+    Returns
+    -------
+    xr.DataArray
+        Matrix which indicates which polygon each raster point belongs to.
+    """
+    shapes = [(geom, i) for i, geom in enumerate(polygons)]
+    arr = rasterize(
+        shapes,
+        out_shape=raster_da.shape,
+        transform=raster_da.rio.transform(),
+        fill=sentinel,  # fills invalid cases
+        dtype="int32",
+    )
+    return xr.DataArray(arr, coords=raster_da.coords, dims=raster_da.dims)
 
 
 def get_uniform_proxy(
@@ -169,44 +210,6 @@ def get_uniform_proxy(
     uniform_proxy = uniform_proxy.rio.set_crs(polygons.crs)
 
     return uniform_proxy
-
-
-def get_belongs_to_matrix(raster: xr.Dataset, polygons: gpd.GeoSeries) -> xr.Dataset:
-    r"""
-    Get a matrix which indicates which polygon each raster point belongs to.
-
-    Parameters
-    ----------
-    raster : xr.Dataset
-        Raster data to get the matrix for.
-    polygons : gpd.GeoSeries
-        Polygons to compute the matrix for.
-
-    Returns
-    -------
-    xr.Dataset
-        Matrix which indicates which polygon each raster point belongs to.
-    """
-    assert len(raster.dims) == 2, "Raster data should have 2 dimensions."
-    # create an empty dataarray with the coords matching raster and spatial_units
-    belongs_to_matrix = xr.DataArray(
-        data=None, dims=["y", "x"], coords={"y": raster.y, "x": raster.x}
-    )
-    belongs_to_matrix.attrs["transform"] = raster.rio.transform
-    belongs_to_matrix.attrs["crs"] = raster.rio.crs
-
-    for id, geometry in polygons.items():
-        mask = geometry_mask(
-            [geometry],
-            out_shape=raster.shape,
-            transform=raster.rio.transform(),
-            invert=True,
-        )
-        mask = xr.DataArray(mask, coords=raster.coords, dims=raster.dims)
-        # assert belongs_to_matrix.where(mask).isnull().all(), "Trying to assign to value which is not None. Maybe cause of overlapping geometries."
-        belongs_to_matrix = belongs_to_matrix.where(~mask, id)
-
-    return belongs_to_matrix
 
 
 def disaggregate_polygon_to_point(
