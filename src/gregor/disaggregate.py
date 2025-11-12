@@ -150,33 +150,36 @@ def disaggregate_polygon_to_raster(
     return raster
 
 
-def get_belongs_to_matrix(
-    raster_da: xr.DataArray, polygons: gpd.GeoSeries, sentinel: int = -1
-) -> xr.DataArray:
+def get_belongs_to_matrix(raster: xr.DataArray, polygons: gpd.GeoSeries, nodata: int=-1) -> xr.DataArray:
     r"""
     Get a matrix which indicates which polygon each raster point belongs to.
 
     Parameters
     ----------
-    raster_da : xr.DataArray
+    raster : xr.DataArray
         Raster array to get the matrix for.
     polygons : gpd.GeoSeries
         Polygons to compute the matrix for.
+    nodata : int
+        Value to use as NaN, i.e. for pixels that do not belong to any polygon.
 
     Returns
     -------
     xr.DataArray
         Matrix which indicates which polygon each raster point belongs to.
     """
+    assert len(raster.dims) == 2, "Raster data should have 2 dimensions."
+
     shapes = [(geom, i) for i, geom in enumerate(polygons)]
     arr = rasterize(
         shapes,
-        out_shape=raster_da.shape,
-        transform=raster_da.rio.transform(),
-        fill=sentinel,  # fills invalid cases
+        out_shape=raster.shape,
+        transform=raster.rio.transform(),
+        fill=nodata,  # fills invalid cases
         dtype="int32",
     )
-    return xr.DataArray(arr, coords=raster_da.coords, dims=raster_da.dims)
+
+    return xr.DataArray(arr, coords=raster.coords, dims=raster.dims)
 
 
 def get_uniform_proxy(
