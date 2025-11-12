@@ -2,7 +2,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-import rioxarray as rxr
+
 from shapely.geometry import Point, Polygon
 
 
