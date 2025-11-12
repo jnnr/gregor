@@ -19,5 +19,10 @@ def square_segmentation_3x3():
 
 
 @pytest.fixture
+def polygon_segmentation():
+    return gpd.read_file("test/_files/segmentation_polygon.geojson").set_index("id")
+
+
+@pytest.fixture
 def points():
     return gpd.read_file("test/_files/points.geojson")
