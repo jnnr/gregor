@@ -1,32 +1,14 @@
-import geopandas as gpd
 import numpy as np
-import pytest
-import rioxarray as rxr
 from gregor.disaggregate import (
     disaggregate_polygon_to_point,
     disaggregate_polygon_to_raster,
 )
-
-
-@pytest.fixture
-def dummy_raster():
-    return rxr.open_rasterio("test/_files/raster.tif").squeeze(drop=True)
-
-
-@pytest.fixture
-def square_segmentation_2x2():
-    return gpd.read_file("test/_files/segmentation_2x2.geojson").set_index("id")
-
-
-@pytest.fixture
-def square_segmentation_3x3():
-    return gpd.read_file("test/_files/segmentation_3x3.geojson").set_index("id")
-
-
-@pytest.fixture
-def points():
-    return gpd.read_file("test/_files/points.geojson").set_index("id")
-
+from fixtures import (
+    dummy_raster,
+    points,
+    square_segmentation_2x2,
+    square_segmentation_3x3,
+)
 
 def test_disaggregate_2x2(dummy_raster, square_segmentation_2x2):
     data = square_segmentation_2x2

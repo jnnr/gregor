@@ -1,28 +1,12 @@
-import geopandas as gpd
 import numpy as np
 import pytest
-import rioxarray as rxr
+
 from gregor.aggregate import aggregate_raster_to_polygon
-
-
-@pytest.fixture
-def dummy_raster():
-    return rxr.open_rasterio("test/_files/raster.tif").squeeze(drop=True)
-
-
-@pytest.fixture
-def square_segmentation_2x2():
-    return gpd.read_file("test/_files/segmentation_2x2.geojson").set_index("id")
-
-
-@pytest.fixture
-def square_segmentation_3x3():
-    return gpd.read_file("test/_files/segmentation_3x3.geojson").set_index("id")
-
-
-@pytest.fixture
-def points():
-    return gpd.read_file("test/_files/points.geojson")
+from fixtures import (
+    dummy_raster,
+    square_segmentation_2x2,
+    square_segmentation_3x3,
+)
 
 
 def test_agg_tif_2x2(square_segmentation_2x2):
