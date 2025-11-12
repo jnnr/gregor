@@ -49,6 +49,14 @@ def get_polygon_segmentation(xlim, ylim):
     polygons = gpd.GeoSeries(polygons, crs="EPSG:4326")
     return polygons
 
+def get_index(resolution):
+    index = np.arange(resolution * resolution)
+    index = index.reshape((resolution, resolution))
+    index = np.rot90(index)
+    index = index.flatten().tolist()
+    index.reverse()
+    
+    return index
 
 if __name__ == "__main__":
     # Raster needs to be created north up.
@@ -68,24 +76,25 @@ if __name__ == "__main__":
 
     segmentation_2 = gpd.GeoDataFrame(
         {
-            "id": range((int(resolution / 2)) ** 2),
+            "id": get_index(2),
             "geometry": get_square_segmentation(
-                (-0.25, 1.75), (9.75, 11.75), int(resolution / 2)
+                (-0.25, 1.75), (9.75, 11.75), 2
             ),
         },
         crs="EPSG:4326",
-    )
+    ).set_index("id").sort_index()
     segmentation_2.to_file("segmentation_2x2.geojson", driver="GeoJSON")
+
 
     segmentation_3 = gpd.GeoDataFrame(
         {
-            "id": range((resolution - 1) ** 2),
+            "id": get_index(3),
             "geometry": get_square_segmentation(
-                (-0.0, 1.5), (10, 11.5), resolution - 1
+                (-0.0, 1.5), (10, 11.5), 3
             ),
         },
         crs="EPSG:4326",
-    )
+    ).set_index("id").sort_index()
     segmentation_3.to_file("segmentation_3x3.geojson", driver="GeoJSON")
 
     segmentation_polygon = get_polygon_segmentation((-0.25, 1.75), (9.75, 11.75))
