@@ -42,10 +42,10 @@ def test_dissagregate_to_point(square_segmentation_2x2, points):
 
     data["value"] = [1, 3, 5, 7]
 
-    data = data.drop(index=3)  # Drop the polygon with value 7 which has no points
+    data = data.drop(index=1)  # Drop the polygon with value 3 which has no points
 
     disaggregated = disaggregate_polygon_to_point(
         data=data, column="value", proxy=points, proxy_column="data"
     )
 
-    assert disaggregated["disaggregated"].sum() == 9
+    assert disaggregated["disaggregated"].sum() == 13
