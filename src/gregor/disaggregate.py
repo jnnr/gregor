@@ -37,8 +37,11 @@ def disaggregate_polygon_to_raster(
     """
     if isinstance(proxy, xr.DataArray):
         _proxy = proxy
-    else:  # proxy is a Dataset
+    elif isinstance(proxy, xr.Dataset):
         if len(proxy.data_vars) == 1:
+            raise DeprecationWarning(
+                "Passing DataSet is deprecated and will be disallowed in the future. Use DataArray instead."
+            )
             var_name = next(iter(proxy.data_vars))
             _proxy = proxy[var_name]
         else:
@@ -46,11 +49,17 @@ def disaggregate_polygon_to_raster(
                 f"Cannot compute multi-variable Dataset of length {len(proxy.data_vars)}. "
                 "Pass a DataArray instead."
             )
+    else:
+        raise TypeError(
+            f"`proxy` must be an xarray DataArray or Dataset, got {type(proxy)}."
+        )
 
+    # make sure that index has a name in internal copy of 'data'
     _data = data.copy()
     index_name = _data.index.name or "id"
     _data.index.name = index_name
 
+    # make sure that crs of data and proxy match
     if _proxy.rio.crs != _data.crs:
         print(
             f"CRS of `proxy` ({_proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
