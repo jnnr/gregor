@@ -2,6 +2,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
+import rioxarray as rxr
 from shapely.geometry import Point, Polygon
 
 
@@ -21,6 +22,31 @@ def get_square_segmentation(xlim, ylim, resolution):
             polygons.append(
                 Polygon([(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
             )
+    return polygons
+
+
+def get_polygon_segmentation(xlim, ylim):
+    polygons = []
+    polygons.append(
+        Polygon(
+            [
+                (xlim[0], ylim[0]),
+                (xlim[1], ylim[0]),
+                (xlim[1], (ylim[0] + ylim[1]) / 2),
+                (xlim[0], ylim[1]),
+            ]
+        )
+    )
+    polygons.append(
+        Polygon(
+            [
+                (xlim[0], ylim[0]),
+                (xlim[1], (ylim[0] + ylim[1]) / 2),
+                (xlim[0], ylim[1]),
+            ]
+        )
+    )
+    polygons = gpd.GeoSeries(polygons, crs="EPSG:4326")
     return polygons
 
 
@@ -62,6 +88,9 @@ if __name__ == "__main__":
     )
     segmentation_3.to_file("segmentation_3x3.geojson", driver="GeoJSON")
 
+    segmentation_polygon = get_polygon_segmentation((-0.25, 1.75), (9.75, 11.75))
+    segmentation_polygon.to_file("segmentation_polygon.geojson", driver="GeoJSON")
+
     n_points = 10
     dummy_points = gpd.GeoDataFrame(
         {
@@ -77,8 +106,14 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.add_subplot(111)
     dummy_raster.plot(ax=ax, cmap="Greens")
-    segmentation_2.boundary.plot(ax=ax, color="red")
-    segmentation_3.boundary.plot(ax=ax, color="blue")
-    dummy_points.plot(ax=ax, color="red")
-    plt.tight_layout()
-    plt.savefig("test.png")
+    segmentation_2.boundary.plot(ax=ax, color="red", label="2x2 segmentation")
+    segmentation_3.boundary.plot(ax=ax, color="blue", label="3x3 segmentation")
+    segmentation_polygon.boundary.plot(ax=ax, facecolor="none", edgecolor="black", label="Polygon segmentation")
+    dummy_points.plot(ax=ax, color="red", label="Point proxy")
+    ax.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.35),
+        ncol=2,
+        fontsize="small",
+    )
+    plt.savefig("test.png", bbox_inches="tight")
