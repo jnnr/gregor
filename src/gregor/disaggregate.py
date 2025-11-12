@@ -36,40 +36,39 @@ def disaggregate_polygon_to_raster(
         Disaggregated raster data.
     """
     if isinstance(proxy, xr.DataArray):
-        proxy_da = proxy
+        _proxy = proxy
     else:  # proxy is a Dataset
         if len(proxy.data_vars) == 1:
             var_name = next(iter(proxy.data_vars))
-            proxy_da = proxy[var_name]
+            _proxy = proxy[var_name]
         else:
             raise ValueError(
                 f"Cannot compute multi-variable Dataset of length {len(proxy.data_vars)}. "
                 "Pass a DataArray instead."
             )
 
-    gdf = data.copy()
-    index_name = gdf.index.name or "id"
-    gdf.index.name = index_name
+    _data = data.copy()
+    index_name = _data.index.name or "id"
+    _data.index.name = index_name
 
-    if proxy.rio.crs != gdf.crs:
+    if _proxy.rio.crs != _data.crs:
         print(
-            f"CRS of `proxy` ({proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
+            f"CRS of `proxy` ({_proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
         )
-        gdf = gdf.to_crs(proxy.rio.crs)
+        _data = _data.to_crs(_proxy.rio.crs)
 
     # always one DataArray in float32, chunked
-    proxy_da = proxy_da.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
+    _proxy = _proxy.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
     # raster of polygon IDs ─ always burn row numbers (0…n‑1)
-    if not np.issubdtype(gdf.index.dtype, np.integer):
+    if not np.issubdtype(_data.index.dtype, np.integer):
         print("Non-integer index detected, resetting to numeric for processing.")
-        geom_id_source = gdf.reset_index(drop=True).geometry  # integer IDs
+        geom_id_source = _data.reset_index(drop=True).geometry  # integer IDs
     else:
-        geom_id_source = gdf.geometry
+        geom_id_source = _data.geometry
 
-    belongs_to = get_belongs_to_matrix(proxy_da, geom_id_source)
-    belongs_to = belongs_to.where(~belongs_to.isnull(), other=-1)
-    belongs_to = belongs_to.astype("int32").chunk(proxy_da.chunks)
+    belongs_to = get_belongs_to_matrix(_proxy, geom_id_source, nodata=-1)
+    belongs_to = belongs_to.chunk(_proxy.chunks)
 
     # zonal sums per polygon
     max_id = int(belongs_to.max().compute())  # get the 'true' maximum
@@ -85,7 +84,7 @@ def disaggregate_polygon_to_raster(
 
     zonal = xr.apply_ufunc(
         _zonal_sum,
-        proxy_da,
+        _proxy,
         belongs_to,
         kwargs={"n_ids": n_ids},
         input_core_dims=[["y", "x"], ["y", "x"]],
@@ -108,7 +107,7 @@ def disaggregate_polygon_to_raster(
     val_full[sentinel] = np.nan
     norm_full[sentinel] = 1.0  # avoid 0/0 inside map_blocks
 
-    val_full[: len(gdf)] = gdf[column].astype("float32").values
+    val_full[: len(_data)] = _data[column].astype("float32").values
     norm_full[:n_ids] = normalisation.values
 
     # raster assembly
@@ -120,17 +119,17 @@ def disaggregate_polygon_to_raster(
     # lookup via map_blocks, works with N‑D indexers
     val_pix = da.map_blocks(lambda blk: val_full[blk], ids_safe, dtype="float32")
     norm_pix = da.map_blocks(lambda blk: norm_full[blk], ids_safe, dtype="float32")
-    raster_data = da.where(ids >= 0, proxy_da.data * val_pix / norm_pix, np.nan)
+    raster_data = da.where(ids >= 0, _proxy.data * val_pix / norm_pix, np.nan)
 
     raster = xr.DataArray(
         raster_data,
-        dims=proxy_da.dims,
-        coords=proxy_da.coords,
+        dims=_proxy.dims,
+        coords=_proxy.coords,
         name=column,
-        attrs=proxy_da.attrs,
+        attrs=_proxy.attrs,
     )
 
-    if to_data_crs and proxy_da.rio.crs != data.crs:
+    if to_data_crs and _proxy.rio.crs != data.crs:
         print(f"Reprojecting results to `data`'s CRS {data.crs}.")
         raster = raster.rio.reproject(data.crs)
 
