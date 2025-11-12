@@ -12,7 +12,6 @@ def disaggregate_polygon_to_raster(
     proxy: xr.DataArray,
     chunk_size: int = 1024,
     to_data_crs: bool = False,
-    debug: bool = False,
 ) -> xr.DataArray:
     r"""
     Disaggregate polygon data to raster data using proxy.
@@ -30,8 +29,6 @@ def disaggregate_polygon_to_raster(
         Square chunk edge length for the proxy and ID rasters.
     to_data_crs : bool, default False
         If True, reprojects the output raster back to `data`'s CRS.
-    debug: bool, default False
-        If True, print some info on what the process is doing to console.
 
     Returns
     -------
@@ -71,10 +68,6 @@ def disaggregate_polygon_to_raster(
         geom_id_source = gdf.geometry
 
     belongs_to = get_belongs_to_matrix(proxy_da, geom_id_source)
-    if debug:
-        print("unique IDs in belongs_to:", np.unique(belongs_to.data)[:15])
-        print("min / max proxy value:", float(proxy_da.min()), float(proxy_da.max()))
-
     belongs_to = belongs_to.where(~belongs_to.isnull(), other=-1)
     belongs_to = belongs_to.astype("int32").chunk(proxy_da.chunks)
 
@@ -106,8 +99,6 @@ def disaggregate_polygon_to_raster(
 
     # values and normalisations as dense vectors
     normalisation = zonal.sum(dim=set(zonal.dims) - {index_name}).compute()
-    if debug:
-        print("normalization (first 1000):", normalisation.values[:1000])
 
     # +1 extra slot (sentinel) that will later propagate NaN outside given geometries
     val_full = np.zeros(n_ids + 1, dtype="float32")
@@ -129,10 +120,6 @@ def disaggregate_polygon_to_raster(
     # lookup via map_blocks, works with N‑D indexers
     val_pix = da.map_blocks(lambda blk: val_full[blk], ids_safe, dtype="float32")
     norm_pix = da.map_blocks(lambda blk: norm_full[blk], ids_safe, dtype="float32")
-    if debug:
-        print("val_pix block example :", val_pix.blocks[0, 0].compute()[0, :5])
-        print("norm_pix block example:", norm_pix.blocks[0, 0].compute()[0, :5])
-        print("proxy block example   :", proxy_da.data.blocks[0, 0].compute()[0, :5])
     raster_data = da.where(ids >= 0, proxy_da.data * val_pix / norm_pix, np.nan)
 
     raster = xr.DataArray(
