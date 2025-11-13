@@ -70,39 +70,38 @@ def disaggregate_polygon_to_raster(
     # convert _proxy to chunked DataArray in float32
     _proxy = _proxy.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
-    # create belongs_to matrix
-    belongs_to = get_belongs_to_matrix(_proxy, _data.geometry, nodata=-1)
-    belongs_to = belongs_to.chunk(_proxy.chunks)
-
     # prepare normalisation, which is the sum of proxy values inside a polygon
     normalisation = aggregate_raster_to_polygon(_proxy, _data, stats=["sum"])
 
-    # set up arrays
+    # set up look up array
     # allocate extra slot (nodata) that will later propagate NaN outside given geometries
-    max_id = _data.index.max()
-    n_ids = max_id + 1
-    id_nodata = n_ids  # index of slot for nodata
 
-    # val_full contains the original data defined on polygons and a nodata
-    value_lookup = np.zeros(n_ids + 1, dtype="float32")
-    value_lookup[id_nodata] = np.nan
-    value_lookup[:len(_data)] = _data[column].astype("float32").values
+    # data_values contains the original data defined on polygons and a nodata.
+    data_values = _data[column].astype("float32").values
+    data_values = np.append(data_values, np.nan)
 
-    # norm_full contains the proxy, aggregated to polygons, and a 1.0 for nodata
-    norm_lookup = np.zeros(n_ids + 1, dtype="float32")
-    norm_lookup[id_nodata] = 1.0  # avoid 0/0 inside map_blocks
-    norm_lookup[:n_ids] = normalisation["sum"].values
+    # normalisation_values contains the proxy, aggregated to polygons, and a 1.0 for nodata.
+    normalisation_values = normalisation["sum"].astype("float32").values
+    normalisation_values = np.append(normalisation_values, np.nan)
 
-    # raster assembly
-    ids = belongs_to.data  # (y,x)
-    ids_safe = da.where(ids >= 0, ids, id_nodata).astype(
-        "int32"
-    )  # max > billion polygons
+    value_lookup = data_values / normalisation_values
 
-    # lookup via map_blocks, works with N‑D indexers
-    val_pix = da.map_blocks(lambda blk: value_lookup[blk], ids_safe, dtype="float32")
-    norm_pix = da.map_blocks(lambda blk: norm_lookup[blk], ids_safe, dtype="float32")
-    raster_data = da.where(ids >= 0, _proxy.data * val_pix / norm_pix, np.nan)
+    # create belongs_to matrix and replace nodata with last index in value_lookup
+    nodata = -1
+    belongs_to = get_belongs_to_matrix(_proxy, _data.geometry, nodata=nodata)
+    belongs_to = belongs_to.chunk(_proxy.chunks)
+    
+    id_nodata = len(value_lookup) - 1  # index of nodata in value_lookup
+    belongs_to_safe = belongs_to.data
+    belongs_to_safe = da.where(belongs_to_safe != nodata, belongs_to_safe, id_nodata).astype("int32")
+
+    # lookup via map_blocks
+    def lookup_func(blk):
+        return value_lookup[blk]
+    val_pix = da.map_blocks(lookup_func, belongs_to_safe, dtype="float32")
+
+    # compute final raster data
+    raster_data = da.where(belongs_to_safe != id_nodata, _proxy.data * val_pix, np.nan)
 
     raster = xr.DataArray(
         raster_data,
