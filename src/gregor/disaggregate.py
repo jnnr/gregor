@@ -56,59 +56,52 @@ def disaggregate_polygon_to_raster(
             f"`proxy` must be an xarray DataArray or Dataset, got {type(proxy)}."
         )
 
-    # make sure that index has a name in internal copy of 'data'
+    # make an internal copy of data with numerical index
     _data = data.copy()
-    index_name = _data.index.name or "id"
-    _data.index.name = index_name
+    _data = _data.reset_index(drop=True)  # need integer IDs
 
     # make sure that crs of data and proxy match
     if _proxy.rio.crs != _data.crs:
         print(
-            f"CRS of `proxy` ({_proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
+            f"CRS of `data` ({_data.crs}) does not match CRS of `proxy` ({_proxy.rio.crs}). Reprojecting CRS of `data` to match `proxy`'s CRS."
         )
         _data = _data.to_crs(_proxy.rio.crs)
 
     # convert _proxy to chunked DataArray in float32
     _proxy = _proxy.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
-    # create belongs_to matrix with integer ids
-    if not np.issubdtype(_data.index.dtype, np.integer):
-        print("Non-integer index detected, resetting to numeric for processing.")
-        geom_id_source = _data.reset_index(drop=True).geometry  # integer IDs
-    else:
-        geom_id_source = _data.geometry
-
-    belongs_to = get_belongs_to_matrix(_proxy, geom_id_source, nodata=-1)
+    # create belongs_to matrix
+    belongs_to = get_belongs_to_matrix(_proxy, _data.geometry, nodata=-1)
     belongs_to = belongs_to.chunk(_proxy.chunks)
 
     # prepare normalisation, which is the sum of proxy values inside a polygon
     normalisation = aggregate_raster_to_polygon(_proxy, _data, stats=["sum"])
 
     # set up arrays
-    # +1 extra slot (sentinel) that will later propagate NaN outside given geometries
-    max_id = int(belongs_to.max().compute())  # get the 'true' maximum
-    n_ids = max_id + 1  # valid IDs: 0 … max_id
-    id_sentinel = n_ids  # index of zero‑filled slot
+    # allocate extra slot (nodata) that will later propagate NaN outside given geometries
+    max_id = _data.index.max()
+    n_ids = max_id + 1
+    id_nodata = n_ids  # index of slot for nodata
 
     # val_full contains the original data defined on polygons and a nodata
-    val_full = np.zeros(n_ids + 1, dtype="float32")
-    val_full[id_sentinel] = np.nan
-    val_full[: len(_data)] = _data[column].astype("float32").values
+    value_lookup = np.zeros(n_ids + 1, dtype="float32")
+    value_lookup[id_nodata] = np.nan
+    value_lookup[:len(_data)] = _data[column].astype("float32").values
 
     # norm_full contains the proxy, aggregated to polygons, and a 1.0 for nodata
-    norm_full = np.zeros(n_ids + 1, dtype="float32")
-    norm_full[id_sentinel] = 1.0  # avoid 0/0 inside map_blocks
-    norm_full[:n_ids] = normalisation["sum"].values
+    norm_lookup = np.zeros(n_ids + 1, dtype="float32")
+    norm_lookup[id_nodata] = 1.0  # avoid 0/0 inside map_blocks
+    norm_lookup[:n_ids] = normalisation["sum"].values
 
     # raster assembly
     ids = belongs_to.data  # (y,x)
-    ids_safe = da.where(ids >= 0, ids, id_sentinel).astype(
+    ids_safe = da.where(ids >= 0, ids, id_nodata).astype(
         "int32"
     )  # max > billion polygons
 
     # lookup via map_blocks, works with N‑D indexers
-    val_pix = da.map_blocks(lambda blk: val_full[blk], ids_safe, dtype="float32")
-    norm_pix = da.map_blocks(lambda blk: norm_full[blk], ids_safe, dtype="float32")
+    val_pix = da.map_blocks(lambda blk: value_lookup[blk], ids_safe, dtype="float32")
+    norm_pix = da.map_blocks(lambda blk: norm_lookup[blk], ids_safe, dtype="float32")
     raster_data = da.where(ids >= 0, _proxy.data * val_pix / norm_pix, np.nan)
 
     raster = xr.DataArray(
