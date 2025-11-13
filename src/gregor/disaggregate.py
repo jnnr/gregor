@@ -86,22 +86,19 @@ def disaggregate_polygon_to_raster(
 
     value_lookup = data_values / normalisation_values
 
-    # create belongs_to matrix and replace nodata with last index in value_lookup
-    nodata = -1
-    belongs_to = get_belongs_to_matrix(_proxy, _data.geometry, nodata=nodata)
-    belongs_to = belongs_to.chunk(_proxy.chunks)
-    
+    # create belongs_to matrix with nodata being the last index in value_lookup
     id_nodata = len(value_lookup) - 1  # index of nodata in value_lookup
-    belongs_to_safe = belongs_to.data
-    belongs_to_safe = da.where(belongs_to_safe != nodata, belongs_to_safe, id_nodata).astype("int32")
+    belongs_to = get_belongs_to_matrix(_proxy, _data.geometry, nodata=id_nodata)
+    belongs_to = belongs_to.chunk(_proxy.chunks)
+    belongs_to = belongs_to.data.astype("int32")
 
-    # lookup via map_blocks
+    # map lookup function to blocks using dask.array.map_blocks
     def lookup_func(blk):
         return value_lookup[blk]
-    val_pix = da.map_blocks(lookup_func, belongs_to_safe, dtype="float32")
+    val_pix = da.map_blocks(lookup_func, belongs_to, dtype="float32")
 
     # compute final raster data
-    raster_data = da.where(belongs_to_safe != id_nodata, _proxy.data * val_pix, np.nan)
+    raster_data = _proxy.data * val_pix
 
     raster = xr.DataArray(
         raster_data,
