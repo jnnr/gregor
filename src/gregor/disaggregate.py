@@ -5,6 +5,8 @@ import pandas as pd
 import xarray as xr
 from rasterio.features import rasterize
 
+from gregor.aggregate import aggregate_raster_to_polygon
+
 
 def disaggregate_polygon_to_raster(
     data: gpd.GeoDataFrame,
@@ -66,10 +68,10 @@ def disaggregate_polygon_to_raster(
         )
         _data = _data.to_crs(_proxy.rio.crs)
 
-    # always one DataArray in float32, chunked
+    # convert _proxy to chunked DataArray in float32
     _proxy = _proxy.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
-    # raster of polygon IDs ─ always burn row numbers (0…n‑1)
+    # create belongs_to matrix with integer ids
     if not np.issubdtype(_data.index.dtype, np.integer):
         print("Non-integer index detected, resetting to numeric for processing.")
         geom_id_source = _data.reset_index(drop=True).geometry  # integer IDs
@@ -79,49 +81,28 @@ def disaggregate_polygon_to_raster(
     belongs_to = get_belongs_to_matrix(_proxy, geom_id_source, nodata=-1)
     belongs_to = belongs_to.chunk(_proxy.chunks)
 
-    # zonal sums per polygon
+    # prepare normalisation, which is the sum of proxy values inside a polygon
+    normalisation = aggregate_raster_to_polygon(_proxy, _data, stats=["sum"])
+
+    # set up arrays
+    # +1 extra slot (sentinel) that will later propagate NaN outside given geometries
     max_id = int(belongs_to.max().compute())  # get the 'true' maximum
     n_ids = max_id + 1  # valid IDs: 0 … max_id
+    id_sentinel = n_ids  # index of zero‑filled slot
 
-    def _zonal_sum(block_proxy, block_ids, *, n_ids):
-        ok = (block_ids >= 0) & np.isfinite(block_proxy)  # NEW – drop NaNs
-        return np.bincount(
-            block_ids[ok].ravel(),
-            weights=block_proxy[ok].ravel(),
-            minlength=n_ids,
-        ).astype("float32")
-
-    zonal = xr.apply_ufunc(
-        _zonal_sum,
-        _proxy,
-        belongs_to,
-        kwargs={"n_ids": n_ids},
-        input_core_dims=[["y", "x"], ["y", "x"]],
-        output_core_dims=[[index_name]],
-        output_sizes={index_name: n_ids},
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=["float32"],
-        dask_gufunc_kwargs={"allow_rechunk": True},
-    )
-
-    # values and normalisations as dense vectors
-    normalisation = zonal.sum(dim=set(zonal.dims) - {index_name}).compute()
-
-    # +1 extra slot (sentinel) that will later propagate NaN outside given geometries
+    # val_full contains the original data defined on polygons and a nodata
     val_full = np.zeros(n_ids + 1, dtype="float32")
-    norm_full = np.zeros(n_ids + 1, dtype="float32")
-    sentinel = n_ids  # index of zero‑filled slot
-
-    val_full[sentinel] = np.nan
-    norm_full[sentinel] = 1.0  # avoid 0/0 inside map_blocks
-
+    val_full[id_sentinel] = np.nan
     val_full[: len(_data)] = _data[column].astype("float32").values
-    norm_full[:n_ids] = normalisation.values
+
+    # norm_full contains the proxy, aggregated to polygons, and a 1.0 for nodata
+    norm_full = np.zeros(n_ids + 1, dtype="float32")
+    norm_full[id_sentinel] = 1.0  # avoid 0/0 inside map_blocks
+    norm_full[:n_ids] = normalisation["sum"].values
 
     # raster assembly
     ids = belongs_to.data  # (y,x)
-    ids_safe = da.where(ids >= 0, ids, sentinel).astype(
+    ids_safe = da.where(ids >= 0, ids, id_sentinel).astype(
         "int32"
     )  # max > billion polygons
 
