@@ -38,6 +38,9 @@ gregor = "gregor.cli:cli"
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements/base.txt"] }
 
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = ["requirements/dev.txt"] }
+
 [tool.ruff]
 builtins = ["ellipsis"]
 target-version = "py38"
