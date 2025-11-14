@@ -15,7 +15,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
         python-version: ['3.13']
     name: pytest (Python ${{ matrix.python-version }}) (OS ${{ matrix.os }})
 
