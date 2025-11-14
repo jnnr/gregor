@@ -66,7 +66,7 @@ demand_raster = gregor.disaggregate.disaggregate_polygon_to_raster(demand_geo, c
 # %% [markdown]
 # Aggregate the raster data back to countries for checking. The result should be equal (up to numerics) to the original data.
 # %%
-demand_aggregated = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_country)
+demand_aggregated = gregor.aggregate.aggregate_raster_to_polygon(demand_raster, boundaries_country)
 
 # %%
 # Compare with original demand
@@ -81,7 +81,7 @@ comparison
 # Finally, we aggregate the raster data to NUTS3 level, which is the resolution we are interested in.
 
 # %%
-demand_NUTS3 = gregor.aggregate.aggregate_raster_to_polygon(demand_raster.FC_OTH_HH_E, boundaries_NUTS3)
+demand_NUTS3 = gregor.aggregate.aggregate_raster_to_polygon(demand_raster, boundaries_NUTS3)
 
 # %% [markdown]
 # This is a plot of the original data and the disaggregated data in raster format, as well as the data aggregate to NUTS3 resolution.
@@ -98,7 +98,7 @@ boundaries_country.geometry.boundary.plot(ax=ax1, color="black", linewidth=1, as
 population.rio.reproject("EPSG:4236").plot.imshow(ax=ax2, cmap=reds, vmax=500, aspect=None, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': "# inhabitants"})
 boundaries_country.geometry.boundary.plot(ax=ax2, color="black", linewidth=1, aspect=None)
 
-demand_raster.rio.reproject("EPSG:4236").FC_OTH_HH_E.plot.imshow(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': "GWh/year"})
+demand_raster.rio.reproject("EPSG:4236").plot.imshow(ax=ax3, cmap=greens, aspect=None, vmax=10, add_colorbar=True, cbar_kwargs={'location': 'bottom', 'label': "GWh/year"})
 boundaries_country.geometry.boundary.plot(ax=ax3, color="black", linewidth=1, aspect=None)
 
 demand_NUTS3.plot(ax=ax4, column="sum", vmin=0, vmax=vmax, cmap=greens, aspect=None, legend=True, legend_kwds={'location': 'bottom', 'label': "GWh/year"})
