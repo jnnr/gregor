@@ -1,16 +1,20 @@
+import dask.array as da
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import xarray as xr
-from rasterio.features import geometry_mask
+from rasterio.features import rasterize
+
+from gregor.aggregate import aggregate_raster_to_polygon
 
 
 def disaggregate_polygon_to_raster(
     data: gpd.GeoDataFrame,
     column: str,
-    proxy: xr.Dataset,
+    proxy: xr.DataArray,
+    chunk_size: int = 1024,
     to_data_crs: bool = False,
-) -> xr.Dataset:
+) -> xr.DataArray:
     r"""
     Disaggregate polygon data to raster data using proxy.
     Normalization of the proxy happens internally.
@@ -20,55 +24,127 @@ def disaggregate_polygon_to_raster(
     data : gpd.GeoDataFrame
         Data to be disaggregated.
     column : str
-        Column name of the data to be disaggregated.
-    proxy : xr.Dataset
-        Proxy data for disaggregation.
-    to_data_crs : bool, optional
-        Whether to reproject proxy to `data`'s CRS or keep it in `raster`'s CRS. Default is False.
+        Name of the attribute in `data` to disaggregate.
+    proxy : xr.DataArray
+        Raster whose intensities act as weights.
+    chunk_size : int, default 1024
+        Square chunk edge length for the proxy and ID rasters.
+    to_data_crs : bool, default False
+        If True, reprojects the output raster back to `data`'s CRS.
 
     Returns
     -------
-    xr.Dataset
+    xr.DataArray
         Disaggregated raster data.
     """
+    if isinstance(proxy, xr.DataArray):
+        _proxy = proxy
+    elif isinstance(proxy, xr.Dataset):
+        if len(proxy.data_vars) == 1:
+            raise DeprecationWarning(
+                "Passing DataSet is deprecated and will be disallowed in the future. Use DataArray instead."
+            )
+            var_name = next(iter(proxy.data_vars))
+            _proxy = proxy[var_name]
+        else:
+            raise ValueError(
+                f"Cannot compute multi-variable Dataset of length {len(proxy.data_vars)}. "
+                "Pass a DataArray instead."
+            )
+    else:
+        raise TypeError(
+            f"`proxy` must be an xarray DataArray or Dataset, got {type(proxy)}."
+        )
+
+    # make an internal copy of data with numerical index
     _data = data.copy()
-    index_name = _data.index.name
-    if index_name is None:
-        index_name = "id"
-        _data.index.name = index_name
+    _data = _data.reset_index(drop=True)  # need integer IDs
 
-    if not proxy.rio.crs == data.crs:
+    # make sure that crs of data and proxy match
+    if _proxy.rio.crs != _data.crs:
         print(
-            f"CRS of `proxy` ({proxy.rio.crs}) does not match CRS of `data` ({data.crs}). Reprojecting CRS of `data` to `proxy`'s CRS."
+            f"CRS of `data` ({_data.crs}) does not match CRS of `proxy` ({_proxy.rio.crs}). Reprojecting CRS of `data` to match `proxy`'s CRS."
         )
-        _data = _data.to_crs(proxy.rio.crs)
+        _data = _data.to_crs(_proxy.rio.crs)
 
-    # Each raster point belongs to one spatial_unit
-    belongs_to = get_belongs_to_matrix(proxy, _data.geometry)
-    _data = _data[[column]].to_xarray()
-    normalization = proxy.groupby(belongs_to).sum().rename(group=index_name)
+    # convert _proxy to chunked DataArray in float32
+    _proxy = _proxy.astype("float32").chunk({"y": chunk_size, "x": chunk_size})
 
-    # # Remove regions that do not belong to any geometry
-    _data = _data.sel({index_name: normalization.coords[index_name]})
+    # prepare normalisation, which is the sum of proxy values inside a polygon
+    normalisation = aggregate_raster_to_polygon(_proxy, _data, stats=["sum"])
 
-    # Disaggregate data to raster using proxy
-    # raster_{x,y} = 1/normalization_{id} * _data_{id} * belongs_to_{id,x,y} * proxy_{x,y}
-    raster = xr.DataArray(data=0, dims=["y", "x"], coords={"y": proxy.y, "x": proxy.x})
-    for id in normalization.coords[index_name]:
-        raster_id = (
-            1
-            / normalization.sel({index_name: id})
-            * _data.sel({index_name: id})
-            * (belongs_to == id)
-            * proxy
-        )
-        raster = raster + raster_id
+    # set up look up array
+    # allocate extra slot (nodata) that will later propagate NaN outside given geometries
 
-    if to_data_crs:
+    # data_values contains the original data defined on polygons and a nodata.
+    data_values = _data[column].astype("float32").values
+    data_values = np.append(data_values, np.nan)
+
+    # normalisation_values contains the proxy, aggregated to polygons, and a 1.0 for nodata.
+    normalisation_values = normalisation["sum"].astype("float32").values
+    normalisation_values = np.append(normalisation_values, np.nan)
+
+    value_lookup = data_values / normalisation_values
+
+    # create belongs_to matrix with nodata being the last index in value_lookup
+    id_nodata = len(value_lookup) - 1  # index of nodata in value_lookup
+    belongs_to = get_belongs_to_matrix(_proxy, _data.geometry, nodata=id_nodata)
+    belongs_to = belongs_to.chunk(_proxy.chunks)
+    belongs_to = belongs_to.data.astype("int32")
+
+    # map lookup function to blocks using dask.array.map_blocks
+    def lookup_func(blk):
+        return value_lookup[blk]
+    val_pix = da.map_blocks(lookup_func, belongs_to, dtype="float32")
+
+    # compute final raster data
+    raster_data = _proxy.data * val_pix
+
+    raster = xr.DataArray(
+        raster_data,
+        dims=_proxy.dims,
+        coords=_proxy.coords,
+        name=column,
+        attrs=_proxy.attrs,
+    )
+
+    if to_data_crs and _proxy.rio.crs != data.crs:
         print(f"Reprojecting results to `data`'s CRS {data.crs}.")
         raster = raster.rio.reproject(data.crs)
 
     return raster
+
+
+def get_belongs_to_matrix(raster: xr.DataArray, polygons: gpd.GeoSeries, nodata: int=-1) -> xr.DataArray:
+    r"""
+    Get a matrix which indicates which polygon each raster point belongs to.
+
+    Parameters
+    ----------
+    raster : xr.DataArray
+        Raster array to get the matrix for.
+    polygons : gpd.GeoSeries
+        Polygons to compute the matrix for.
+    nodata : int
+        Value to use as NaN, i.e. for pixels that do not belong to any polygon.
+
+    Returns
+    -------
+    xr.DataArray
+        Matrix which indicates which polygon each raster point belongs to.
+    """
+    assert len(raster.dims) == 2, "Raster data should have 2 dimensions."
+
+    shapes = [(geom, i) for i, geom in enumerate(polygons)]
+    arr = rasterize(
+        shapes,
+        out_shape=raster.shape,
+        transform=raster.rio.transform(),
+        fill=nodata,  # fills invalid cases
+        dtype="int32",
+    )
+
+    return xr.DataArray(arr, coords=raster.coords, dims=raster.dims)
 
 
 def get_uniform_proxy(
@@ -107,44 +183,6 @@ def get_uniform_proxy(
     uniform_proxy = uniform_proxy.rio.set_crs(polygons.crs)
 
     return uniform_proxy
-
-
-def get_belongs_to_matrix(raster: xr.Dataset, polygons: gpd.GeoSeries) -> xr.Dataset:
-    r"""
-    Get a matrix which indicates which polygon each raster point belongs to.
-
-    Parameters
-    ----------
-    raster : xr.Dataset
-        Raster data to get the matrix for.
-    polygons : gpd.GeoSeries
-        Polygons to compute the matrix for.
-
-    Returns
-    -------
-    xr.Dataset
-        Matrix which indicates which polygon each raster point belongs to.
-    """
-    assert len(raster.dims) == 2, "Raster data should have 2 dimensions."
-    # create an empty dataarray with the coords matching raster and spatial_units
-    belongs_to_matrix = xr.DataArray(
-        data=None, dims=["y", "x"], coords={"y": raster.y, "x": raster.x}
-    )
-    belongs_to_matrix.attrs["transform"] = raster.rio.transform
-    belongs_to_matrix.attrs["crs"] = raster.rio.crs
-
-    for id, geometry in polygons.items():
-        mask = geometry_mask(
-            [geometry],
-            out_shape=raster.shape,
-            transform=raster.rio.transform(),
-            invert=True,
-        )
-        mask = xr.DataArray(mask, coords=raster.coords, dims=raster.dims)
-        # assert belongs_to_matrix.where(mask).isnull().all(), "Trying to assign to value which is not None. Maybe cause of overlapping geometries."
-        belongs_to_matrix = belongs_to_matrix.where(~mask, id)
-
-    return belongs_to_matrix
 
 
 def disaggregate_polygon_to_point(
@@ -186,9 +224,9 @@ def disaggregate_polygon_to_point(
     )
 
     # Make sure that it belongs to only one polygon
-    assert (
-        points.belongs_to.apply(len).max() == 1
-    ), "Every Point should belongs to exaxtly one polygon."
+    assert points.belongs_to.apply(len).max() == 1, (
+        "Every Point should belong to exactly one polygon."
+    )
     points.belongs_to = points.belongs_to.apply(lambda x: x[0])
 
     # Warn if there are polygons without points.
