@@ -6,7 +6,7 @@ authors = [
 description = "A library for spatial aggregation and disaggregation"
 readme = "README.md"
 version = "0.0.3.dev"
-dynamic = ["dependencies"]
+dynamic = ["dependencies", "optional-dependencies"]
 
 # complete classifier list:
 # http://pypi.org/classifiers/
@@ -37,6 +37,9 @@ gregor = "gregor.cli:cli"
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements/base.txt"] }
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = ["requirements/dev.txt"] }
 
 [tool.ruff]
 builtins = ["ellipsis"]
