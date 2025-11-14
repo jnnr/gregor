@@ -27,10 +27,10 @@ def test_disaggregate_2x2(dummy_raster, square_segmentation_2x2):
     )
 
     assert (
-        disaggregated.coarsen(x=2, y=2).sum()["value"].values == [[2, 2], [2, 2]]
+        disaggregated.coarsen(x=2, y=2).sum().values == [[2, 2], [2, 2]]
     ).all()
 
-    assert np.allclose(disaggregated["value"].values, expected)
+    assert np.allclose(disaggregated.values, expected)
 
 
 def test_disaggregate_3x3():
